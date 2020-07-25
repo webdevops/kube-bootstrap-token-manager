@@ -1,0 +1,55 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-pool-manager
+  namespace: kube-system
+  labels:
+    app: kube-pool-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-pool-manager
+  template:
+    metadata:
+      labels:
+        app: kube-pool-manager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: kube-pool-manager
+      containers:
+        - name: kube-pool-manager
+          image: webdevops/kube-pool-manager:development
+          imagePullPolicy: Always
+          env:
+            - name: CONFIG
+              value: "/config/pools.yaml"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ['ALL']
+          ports:
+            - containerPort: 8080
+              name: http-metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 1m
+              memory: 100Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: kube-pool-manager
+
+

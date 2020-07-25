@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-pool-manager
+  namespace: kube-system
+data:
+  pools.yaml: |
+    pools:
+      - pool: agents
+        selector:
+          - path: "{.spec.providerID}"
+            regexp: "^.+virtualMachineScaleSets\\/aks-agents-35471996-vmss\\/.+$"
+        node:
+          roles: [agents]
+          #configSource:
+          #  configMap:
+          #    name: kubelet-config
+          #    namespace: kube-system
+          #    kubeletConfigKey: kubelet
+          labels:
+            webdevops.io/testing: true
+          annotations:
+            webdevops.io/testing: 2
