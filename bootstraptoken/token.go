@@ -1,4 +1,4 @@
-package manager
+package bootstraptoken
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	bootstrapToken struct {
+	BootstrapToken struct {
 		id             string
 		secret         string
 		creationTime   *time.Time
@@ -16,32 +16,32 @@ type (
 	}
 )
 
-func (t *bootstrapToken) Id() string {
+func (t *BootstrapToken) Id() string {
 	return t.id
 }
 
-func (t *bootstrapToken) Secret() string {
+func (t *BootstrapToken) Secret() string {
 	return t.secret
 }
 
-func (t *bootstrapToken) FullToken() string {
+func (t *BootstrapToken) FullToken() string {
 	return fmt.Sprintf("%s.%s", t.id, t.secret)
 }
 
-func (t *bootstrapToken) SetExpirationTime(val time.Time) {
+func (t *BootstrapToken) SetExpirationTime(val time.Time) {
 	t.expirationTime = &val
 }
 
-func (t *bootstrapToken) SetExpirationUnixTime(val date.UnixTime) {
+func (t *BootstrapToken) SetExpirationUnixTime(val date.UnixTime) {
 	expirationTime := date.UnixEpoch().Add(val.Duration())
 	t.expirationTime = &expirationTime
 }
 
-func (t *bootstrapToken) GetExpirationTime() *time.Time {
+func (t *BootstrapToken) GetExpirationTime() *time.Time {
 	return t.expirationTime
 }
 
-func (t *bootstrapToken) ExpirationString() (expiration string) {
+func (t *BootstrapToken) ExpirationString() (expiration string) {
 	expiration = "<not set>"
 	if t.expirationTime != nil {
 		expiration = fmt.Sprintf(
@@ -54,7 +54,7 @@ func (t *bootstrapToken) ExpirationString() (expiration string) {
 	return
 }
 
-func (t *bootstrapToken) GetExpirationUnixTime() (val *date.UnixTime) {
+func (t *BootstrapToken) GetExpirationUnixTime() (val *date.UnixTime) {
 	if t.expirationTime != nil {
 		unixTime := date.NewUnixTimeFromDuration(t.expirationTime.Sub(date.UnixEpoch()))
 		val = &unixTime
@@ -62,20 +62,20 @@ func (t *bootstrapToken) GetExpirationUnixTime() (val *date.UnixTime) {
 	return
 }
 
-func (t *bootstrapToken) SetCreationTime(val time.Time) {
+func (t *BootstrapToken) SetCreationTime(val time.Time) {
 	t.creationTime = &val
 }
 
-func (t *bootstrapToken) SetCreationUnixTime(val date.UnixTime) {
+func (t *BootstrapToken) SetCreationUnixTime(val date.UnixTime) {
 	creationTime := date.UnixEpoch().Add(val.Duration())
 	t.creationTime = &creationTime
 }
 
-func (t *bootstrapToken) GetCreationTime() *time.Time {
+func (t *BootstrapToken) GetCreationTime() *time.Time {
 	return t.creationTime
 }
 
-func (t *bootstrapToken) GetCreationUnixTime() (val *date.UnixTime) {
+func (t *BootstrapToken) GetCreationUnixTime() (val *date.UnixTime) {
 	if t.creationTime != nil {
 		unixTime := date.NewUnixTimeFromDuration(t.creationTime.Sub(date.UnixEpoch()))
 		val = &unixTime
@@ -83,18 +83,18 @@ func (t *bootstrapToken) GetCreationUnixTime() (val *date.UnixTime) {
 	return
 }
 
-func newBootstrapToken(id, secret string) *bootstrapToken {
-	token := bootstrapToken{
+func NewBootstrapToken(id, secret string) *BootstrapToken {
+	token := BootstrapToken{
 		id:     id,
 		secret: secret,
 	}
 	return &token
 }
 
-func parseBootstrapTokenFromString(value string) *bootstrapToken {
+func ParseFromString(value string) *BootstrapToken {
 	tokenParts := strings.SplitN(value, ".", 2)
 	if len(tokenParts) == 2 {
-		token := bootstrapToken{
+		token := BootstrapToken{
 			id:     tokenParts[0],
 			secret: tokenParts[1],
 		}

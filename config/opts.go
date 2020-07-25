@@ -16,6 +16,7 @@ type (
 		}
 
 		BootstrapToken struct {
+			TemplateId                   string         `long:"bootstraptoken.template-id"                     env:"BOOTSTRAPTOKEN_TEMPLATE_ID"                        description:"Name for bootstrap tokens" default:"{{.Date}}"`
 			Name                         string         `long:"bootstraptoken.name"                            env:"BOOTSTRAPTOKEN_NAME"                               description:"Name for bootstrap tokens" default:"bootstrap-token-%s"`
 			Label                        string         `long:"bootstraptoken.label"                           env:"BOOTSTRAPTOKEN_LABEL"                              description:"Label for bootstrap tokens" default:"webdevops.kubernetes.io/bootstraptoken-managed"`
 			Namespace                    string         `long:"bootstraptoken.namespace"                       env:"BOOTSTRAPTOKEN_NAMESPACE"                          description:"Namespace for bootstrap tokens" default:"kube-system"`
