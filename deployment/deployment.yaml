@@ -23,7 +23,7 @@ spec:
       serviceAccountName: kube-bootstrap-token-manager
       containers:
         - name: kube-bootstrap-token-manager
-          image: webdevops/kube-bootstrap-token-manager:development
+          image: webdevops/kube-bootstrap-token-manager:latest
           imagePullPolicy: Always
           env:
             - name: CLOUD_PROVIDER
