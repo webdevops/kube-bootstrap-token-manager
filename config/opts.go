@@ -17,7 +17,6 @@ type (
 
 		BootstrapToken struct {
 			IdTemplate                   string         `long:"bootstraptoken.id-template"                     env:"BOOTSTRAPTOKEN_ID_TEMPLATE"                        description:"Template for token ID for bootstrap tokens" default:"{{.Date}}"`
-			IdValidation                 string         `long:"bootstraptoken.id-validation"                   env:"BOOTSTRAPTOKEN_ID_VALIDATION"                      description:"Regexp for validation of bootstrap token IDs" default:"^[a-z0-9]{6}\\.[a-z0-9]{16}$"`
 			Name                         string         `long:"bootstraptoken.name"                            env:"BOOTSTRAPTOKEN_NAME"                               description:"Name for bootstrap tokens" default:"bootstrap-token-%s"`
 			Label                        string         `long:"bootstraptoken.label"                           env:"BOOTSTRAPTOKEN_LABEL"                              description:"Label for bootstrap tokens" default:"webdevops.kubernetes.io/bootstraptoken-managed"`
 			Namespace                    string         `long:"bootstraptoken.namespace"                       env:"BOOTSTRAPTOKEN_NAMESPACE"                          description:"Namespace for bootstrap tokens" default:"kube-system"`
