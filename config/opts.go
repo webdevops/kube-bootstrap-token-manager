@@ -16,7 +16,8 @@ type (
 		}
 
 		BootstrapToken struct {
-			TemplateId                   string         `long:"bootstraptoken.template-id"                     env:"BOOTSTRAPTOKEN_TEMPLATE_ID"                        description:"Name for bootstrap tokens" default:"{{.Date}}"`
+			IdTemplate                   string         `long:"bootstraptoken.id-template"                     env:"BOOTSTRAPTOKEN_ID_TEMPLATE"                        description:"Template for token ID for bootstrap tokens" default:"{{.Date}}"`
+			IdValidation                 string         `long:"bootstraptoken.id-validation"                   env:"BOOTSTRAPTOKEN_ID_VALIDATION"                      description:"Regexp for validation of bootstrap token IDs" default:"^[a-z0-9]{6}\\.[a-z0-9]{16}$"`
 			Name                         string         `long:"bootstraptoken.name"                            env:"BOOTSTRAPTOKEN_NAME"                               description:"Name for bootstrap tokens" default:"bootstrap-token-%s"`
 			Label                        string         `long:"bootstraptoken.label"                           env:"BOOTSTRAPTOKEN_LABEL"                              description:"Label for bootstrap tokens" default:"webdevops.kubernetes.io/bootstraptoken-managed"`
 			Namespace                    string         `long:"bootstraptoken.namespace"                       env:"BOOTSTRAPTOKEN_NAMESPACE"                          description:"Namespace for bootstrap tokens" default:"kube-system"`
@@ -41,7 +42,7 @@ type (
 			Azure struct {
 				Environment        *string `long:"azure-environment"            env:"AZURE_ENVIRONMENT"                description:"Azure environment name"`
 				KeyVaultName       *string `long:"azure.keyvault-name"          env:"AZURE_KEYVAULT_NAME"              description:"Name of Keyvault to sync token"`
-				KeyVaultSecretName *string `long:"azure.keyvault-secret-name"   env:"AZURE_KEYVAULT_SECRET_NAME"       description:"Name of Keyvault secret to sync token"`
+				KeyVaultSecretName *string `long:"azure.keyvault-secret-name"   env:"AZURE_KEYVAULT_SECRET_NAME"       description:"Name of Keyvault secret to sync token" default:"kube-bootstrapt-token"`
 			}
 		}
 

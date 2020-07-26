@@ -38,7 +38,7 @@ type (
 		}
 
 		bootstrapToken struct {
-			templateId *template.Template
+			idTemplate *template.Template
 		}
 
 		cloudProvider cloudprovider.CloudProvider
@@ -52,8 +52,8 @@ func (m *KubeBootstrapTokenManager) Init() {
 	m.initPrometheus()
 	m.initCloudProvider()
 
-	if t, err := template.New("BootstrapTokenId").Parse(m.Opts.BootstrapToken.TemplateId); err == nil {
-		m.bootstrapToken.templateId = t
+	if t, err := template.New("BootstrapTokenId").Parse(m.Opts.BootstrapToken.IdTemplate); err == nil {
+		m.bootstrapToken.idTemplate = t
 	} else {
 		log.Panic(err)
 	}
@@ -196,6 +196,7 @@ func (m *KubeBootstrapTokenManager) createNewToken() error {
 	return nil
 }
 
+// checks if token already exists, updates if needed otherwise creates token
 func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.BootstrapToken, syncToCloud bool) error {
 	contextLogger := log.WithFields(log.Fields{"token": token.Id()})
 
@@ -232,8 +233,8 @@ func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.Bo
 	}
 
 	m.prometheus.token.WithLabelValues(token.Id()).Set(1)
-	if token.GetExpirationTime() != nil {
-		m.prometheus.tokenExpiration.WithLabelValues(token.Id()).Set(float64(token.GetExpirationTime().Unix()))
+	if token.ExpirationTime() != nil {
+		m.prometheus.tokenExpiration.WithLabelValues(token.Id()).Set(float64(token.ExpirationTime().Unix()))
 	} else {
 		m.prometheus.tokenExpiration.WithLabelValues(token.Id()).Set(0)
 	}
@@ -241,6 +242,7 @@ func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.Bo
 	return nil
 }
 
+// update kubernetes resource bootstrap token information
 func (m *KubeBootstrapTokenManager) updateTokenData(resource *corev1.Secret, token *bootstraptoken.BootstrapToken) *corev1.Secret {
 	resource.Type = corev1.SecretType(m.Opts.BootstrapToken.Type)
 
@@ -257,8 +259,8 @@ func (m *KubeBootstrapTokenManager) updateTokenData(resource *corev1.Secret, tok
 	resource.StringData["description"] = "desc"
 	resource.StringData["token-id"] = token.Id()
 	resource.StringData["token-secret"] = token.Secret()
-	if token.GetExpirationTime() != nil {
-		resource.StringData["expiration"] = token.GetExpirationTime().UTC().Format(time.RFC3339)
+	if token.ExpirationTime() != nil {
+		resource.StringData["expiration"] = token.ExpirationTime().UTC().Format(time.RFC3339)
 	}
 	resource.StringData["usage-bootstrap-authentication"] = m.Opts.BootstrapToken.UsageBootstrapAuthentication
 	resource.StringData["usage-bootstrap-signing"] = m.Opts.BootstrapToken.UsageBootstrapSigning
@@ -266,6 +268,7 @@ func (m *KubeBootstrapTokenManager) updateTokenData(resource *corev1.Secret, tok
 	return resource
 }
 
+// creates new token id based on configuration
 func (m *KubeBootstrapTokenManager) generateTokenId() string {
 	templateData := struct {
 		Date string
@@ -274,12 +277,13 @@ func (m *KubeBootstrapTokenManager) generateTokenId() string {
 	}
 
 	idBuf := &bytes.Buffer{}
-	if err := m.bootstrapToken.templateId.Execute(idBuf, templateData); err != nil {
+	if err := m.bootstrapToken.idTemplate.Execute(idBuf, templateData); err != nil {
 		log.Panic(err)
 	}
 	return idBuf.String()
 }
 
+// creates new token secret based on configuration
 func (m *KubeBootstrapTokenManager) generateTokenSecret() string {
 	b := make([]rune, m.Opts.BootstrapToken.TokenLength)
 	runes := []rune(m.Opts.BootstrapToken.TokenRunes)
@@ -290,13 +294,14 @@ func (m *KubeBootstrapTokenManager) generateTokenSecret() string {
 	return string(b)
 }
 
+// checks if token needs renewal or if enforces expiry date
 func (m *KubeBootstrapTokenManager) checkTokenRenewal(token *bootstraptoken.BootstrapToken) bool {
 	if token == nil {
 		return true
 	}
 
 	// no expiry set
-	if token.GetExpirationTime() == nil {
+	if token.ExpirationTime() == nil {
 		// expiration is enfoced, so renew token
 		if m.Opts.BootstrapToken.Expiration != nil {
 			return true
@@ -307,7 +312,7 @@ func (m *KubeBootstrapTokenManager) checkTokenRenewal(token *bootstraptoken.Boot
 	}
 
 	renewalTime := time.Now().Add(m.Opts.Sync.RecreateBefore)
-	if token.GetExpirationTime().Before(renewalTime) {
+	if token.ExpirationTime().Before(renewalTime) {
 		return true
 	}
 

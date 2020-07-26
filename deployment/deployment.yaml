@@ -2,32 +2,40 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kube-pool-manager
+  name: kube-bootstrap-token-manager
   namespace: kube-system
   labels:
-    app: kube-pool-manager
+    app: kube-bootstrap-token-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kube-pool-manager
+      app: kube-bootstrap-token-manager
   template:
     metadata:
       labels:
-        app: kube-pool-manager
+        app: kube-bootstrap-token-manager
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
     spec:
-      serviceAccountName: kube-pool-manager
+      serviceAccountName: kube-bootstrap-token-manager
       containers:
-        - name: kube-pool-manager
-          image: webdevops/kube-pool-manager:development
+        - name: kube-bootstrap-token-manager
+          image: webdevops/kube-bootstrap-token-manager:development
           imagePullPolicy: Always
           env:
-            - name: CONFIG
-              value: "/config/pools.yaml"
+            - name: CLOUD_PROVIDER
+              value: "azure"
+            ###########################
+            # CloudProvider: Azure
+            - name: CLOUD_CONFIG
+              value: "/config/cloudprovider-azure.json"
+            - name: AZURE_ENVIRONMENT
+              value: "AzurePublicCloud"
+            - name: AZURE_KEYVAULT_NAME
+              value: "mblaschke-k8s"
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
@@ -47,9 +55,11 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+              readOnly: true
       volumes:
         - name: config
-          configMap:
-            name: kube-pool-manager
+          secret:
+            secretName: kube-bootstrap-token-manager
+
 
 

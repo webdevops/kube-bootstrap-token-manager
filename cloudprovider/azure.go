@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
+	"os"
 )
 
 type (
@@ -33,10 +34,12 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 	m.opts = opts
 	m.log = log.WithField("cloudprovider", "azure")
 
-	// environment
 	if m.opts.CloudProvider.Config != nil {
-		m.environment, err = azure.EnvironmentFromFile(*m.opts.CloudProvider.Config)
-	} else if m.opts.CloudProvider.Azure.Environment != nil {
+		os.Setenv("AZURE_AUTH_LOCATION", *m.opts.CloudProvider.Config)
+	}
+
+	// environment
+	if m.opts.CloudProvider.Azure.Environment != nil {
 		m.environment, err = azure.EnvironmentFromName(*m.opts.CloudProvider.Azure.Environment)
 	} else {
 		m.environment, err = azure.EnvironmentFromName("AZUREPUBLICCLOUD")
@@ -47,13 +50,18 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 
 	// auth
 	if m.opts.CloudProvider.Config != nil {
-		m.authorizer, err = auth.NewAuthorizerFromFile(m.environment.ResourceIdentifiers.KeyVault)
+		m.authorizer, err = auth.NewAuthorizerFromFileWithResource(m.environment.ResourceIdentifiers.KeyVault)
 	} else {
 		m.authorizer, err = auth.NewAuthorizerFromEnvironmentWithResource(m.environment.ResourceIdentifiers.KeyVault)
 	}
 	if err != nil {
 		m.log.Panic(err)
 	}
+
+	// keyvault client
+	client := keyvault.New()
+	client.Authorizer = m.authorizer
+	m.keyvaultClient = &client
 }
 
 func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken) {
@@ -67,7 +75,8 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 		)
 
 		log.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
-		secret, err := m.azureKeyvaultClient().GetSecret(m.ctx, vaultUrl, secretName, "")
+		secret, err := m.keyvaultClient.GetSecret(m.ctx, vaultUrl, secretName, "")
+		// ignore if not found as "non error"
 		if !secret.IsHTTPStatus(404) && err != nil {
 			log.Panic(err)
 		}
@@ -89,6 +98,8 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 	if token != nil {
 		contextLogger := log.WithFields(log.Fields{"token": token.Id()})
 		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
+	} else {
+		log.Infof("no cloud token found")
 	}
 
 	return
@@ -115,28 +126,13 @@ func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
 			},
 			ContentType: stringPtr("kube-bootstrap-token"),
 			SecretAttributes: &keyvault.SecretAttributes{
-				NotBefore: token.GetCreationUnixTime(),
-				Expires:   token.GetExpirationUnixTime(),
+				NotBefore: token.CreationUnixTime(),
+				Expires:   token.ExpirationUnixTime(),
 			},
 		}
-		_, err := m.azureKeyvaultClient().SetSecret(m.ctx, vaultUrl, secretName, secretParameters)
+		_, err := m.keyvaultClient.SetSecret(m.ctx, vaultUrl, secretName, secretParameters)
 		if err != nil {
 			log.Panic(err)
 		}
 	}
-}
-
-func (m *CloudProviderAzure) azureKeyvaultClient() *keyvault.BaseClient {
-	if m.keyvaultClient == nil {
-		auth, err := auth.NewAuthorizerFromEnvironmentWithResource(m.environment.ResourceIdentifiers.KeyVault)
-		if err != nil {
-			log.Panic(err)
-		}
-
-		client := keyvault.New()
-		client.Authorizer = auth
-		m.keyvaultClient = &client
-	}
-
-	return m.keyvaultClient
 }

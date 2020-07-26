@@ -37,7 +37,7 @@ func (t *BootstrapToken) SetExpirationUnixTime(val date.UnixTime) {
 	t.expirationTime = &expirationTime
 }
 
-func (t *BootstrapToken) GetExpirationTime() *time.Time {
+func (t *BootstrapToken) ExpirationTime() *time.Time {
 	return t.expirationTime
 }
 
@@ -54,7 +54,7 @@ func (t *BootstrapToken) ExpirationString() (expiration string) {
 	return
 }
 
-func (t *BootstrapToken) GetExpirationUnixTime() (val *date.UnixTime) {
+func (t *BootstrapToken) ExpirationUnixTime() (val *date.UnixTime) {
 	if t.expirationTime != nil {
 		unixTime := date.NewUnixTimeFromDuration(t.expirationTime.Sub(date.UnixEpoch()))
 		val = &unixTime
@@ -71,11 +71,11 @@ func (t *BootstrapToken) SetCreationUnixTime(val date.UnixTime) {
 	t.creationTime = &creationTime
 }
 
-func (t *BootstrapToken) GetCreationTime() *time.Time {
+func (t *BootstrapToken) CreationTime() *time.Time {
 	return t.creationTime
 }
 
-func (t *BootstrapToken) GetCreationUnixTime() (val *date.UnixTime) {
+func (t *BootstrapToken) CreationUnixTime() (val *date.UnixTime) {
 	if t.creationTime != nil {
 		unixTime := date.NewUnixTimeFromDuration(t.creationTime.Sub(date.UnixEpoch()))
 		val = &unixTime
