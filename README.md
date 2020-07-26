@@ -26,7 +26,6 @@ Application Options:
   -v, --verbose                                        verbose mode [$VERBOSE]
       --log.json                                       Switch log output to json format [$LOG_JSON]
       --bootstraptoken.id-template=                    Template for token ID for bootstrap tokens (default: {{.Date}}) [$BOOTSTRAPTOKEN_ID_TEMPLATE]
-      --bootstraptoken.id-validation=                  Regexp for validation of bootstrap token IDs (default: ^[a-z0-9]{6}\.[a-z0-9]{16}$) [$BOOTSTRAPTOKEN_ID_VALIDATION]
       --bootstraptoken.name=                           Name for bootstrap tokens (default: bootstrap-token-%s) [$BOOTSTRAPTOKEN_NAME]
       --bootstraptoken.label=                          Label for bootstrap tokens (default: webdevops.kubernetes.io/bootstraptoken-managed) [$BOOTSTRAPTOKEN_LABEL]
       --bootstraptoken.namespace=                      Namespace for bootstrap tokens (default: kube-system) [$BOOTSTRAPTOKEN_NAMESPACE]
