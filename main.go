@@ -35,7 +35,7 @@ func main() {
 	log.Info(string(opts.GetJson()))
 
 	manager := manager.KubeBootstrapTokenManager{
-		Opts: opts,
+		Opts:    opts,
 		Version: gitTag,
 	}
 

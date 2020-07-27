@@ -23,7 +23,7 @@ import (
 
 type (
 	KubeBootstrapTokenManager struct {
-		Opts config.Opts
+		Opts    config.Opts
 		Version string
 
 		ctx       context.Context

@@ -81,7 +81,7 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 			// disabled secret, continue as there would be no token
 			log.Warn("current secret is disabled, assuming non existing token")
 			err = nil
-			break;
+			break
 		case "ForbiddenByPolicy":
 			// access is forbidden
 			log.Error("unable to access Azure KeyVault, please check access")
