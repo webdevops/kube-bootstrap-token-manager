@@ -24,6 +24,7 @@ import (
 type (
 	KubeBootstrapTokenManager struct {
 		Opts config.Opts
+		Version string
 
 		ctx       context.Context
 		k8sClient *kubernetes.Clientset
@@ -256,7 +257,7 @@ func (m *KubeBootstrapTokenManager) updateTokenData(resource *corev1.Secret, tok
 		resource.StringData = map[string]string{}
 	}
 
-	resource.StringData["description"] = "desc"
+	resource.StringData["description"] = fmt.Sprintf("Token maintained by kube-bootstrap-token-manager/%s", m.Version)
 	resource.StringData["token-id"] = token.Id()
 	resource.StringData["token-secret"] = token.Secret()
 	if token.ExpirationTime() != nil {

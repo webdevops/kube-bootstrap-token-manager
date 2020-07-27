@@ -36,6 +36,7 @@ func main() {
 
 	manager := manager.KubeBootstrapTokenManager{
 		Opts: opts,
+		Version: gitTag,
 	}
 
 	manager.Init()
