@@ -41,7 +41,7 @@ type (
 			Azure struct {
 				Environment        *string `long:"azure-environment"            env:"AZURE_ENVIRONMENT"                description:"Azure environment name"`
 				KeyVaultName       *string `long:"azure.keyvault-name"          env:"AZURE_KEYVAULT_NAME"              description:"Name of Keyvault to sync token"`
-				KeyVaultSecretName *string `long:"azure.keyvault-secret-name"   env:"AZURE_KEYVAULT_SECRET_NAME"       description:"Name of Keyvault secret to sync token" default:"kube-bootstrapt-token"`
+				KeyVaultSecretName *string `long:"azure.keyvault-secret-name"   env:"AZURE_KEYVAULT_SECRET_NAME"       description:"Name of Keyvault secret to sync token" default:"kube-bootstrap-token"`
 			}
 		}
 
