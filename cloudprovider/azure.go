@@ -76,8 +76,18 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 
 		log.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
 		secret, err := m.keyvaultClient.GetSecret(m.ctx, vaultUrl, secretName, "")
-		// ignore if not found as "non error"
-		if !secret.IsHTTPStatus(404) && err != nil {
+		switch m.getInnerErrorCodeFromAutorestError(err) {
+		case "SecretDisabled":
+			// disabled secret, continue as there would be no token
+			log.Warn("current secret is disabled, assuming non existing token")
+			err = nil
+			break;
+		case "ForbiddenByPolicy":
+			// access is forbidden
+			log.Error("unable to access Azure KeyVault, please check access")
+			log.Panic(err)
+		default:
+			// not handled error
 			log.Panic(err)
 		}
 
@@ -93,13 +103,6 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 				}
 			}
 		}
-	}
-
-	if token != nil {
-		contextLogger := log.WithFields(log.Fields{"token": token.Id()})
-		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
-	} else {
-		log.Infof("no cloud token found")
 	}
 
 	return
@@ -135,4 +138,17 @@ func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
 			log.Panic(err)
 		}
 	}
+}
+
+func (m *CloudProviderAzure) getInnerErrorCodeFromAutorestError(err error) (code interface{}) {
+	if autorestError, ok := err.(autorest.DetailedError); ok {
+		if azureRequestError, ok := autorestError.Original.(*azure.RequestError); ok {
+			if azureRequestError.ServiceError != nil {
+				if errorCode, exists := azureRequestError.ServiceError.InnerError["code"]; exists {
+					code = errorCode
+				}
+			}
+		}
+	}
+	return
 }

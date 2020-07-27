@@ -158,6 +158,7 @@ func (m *KubeBootstrapTokenManager) Start() {
 func (m *KubeBootstrapTokenManager) syncRun() error {
 	if token := m.cloudProvider.FetchToken(); token != nil {
 		contextLogger := log.WithFields(log.Fields{"token": token.Id()})
+		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
 		if m.checkTokenRenewal(token) {
 			contextLogger.Infof("token is not valid or going to expire, starting renewal of token")
 			if err := m.createNewToken(); err != nil {
