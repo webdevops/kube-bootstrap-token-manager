@@ -141,6 +141,7 @@ func (m *KubeBootstrapTokenManager) initCloudProvider() {
 func (m *KubeBootstrapTokenManager) Start() {
 	go func() {
 		for {
+			log.Infof("starting sync run")
 			if err := m.syncRun(); err == nil {
 				m.prometheus.sync.WithLabelValues().Set(1)
 				m.prometheus.syncCount.WithLabelValues().Inc()
