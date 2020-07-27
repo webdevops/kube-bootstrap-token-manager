@@ -26,7 +26,7 @@ type (
 			AuthExtraGroups              string         `long:"bootstraptoken.auth-extra-groups"               env:"BOOTSTRAPTOKEN_AUTH_EXTRA_GROUPS"                  description:"Auth extra groups for bootstrap tokens" default:"system:bootstrappers:worker,system:bootstrappers:ingress"`
 			Expiration                   *time.Duration `long:"bootstraptoken.expiration"                      env:"BOOTSTRAPTOKEN_EXPIRATION"                         description:"Expiration (time.Duration) for bootstrap tokens" default:"8760h"`
 			TokenLength                  uint           `long:"bootstraptoken.token-length"                    env:"BOOTSTRAPTOKEN_TOKEN_LENGTH"                       description:"Length of the random token string for bootstrap tokens" default:"16"`
-			TokenRunes                   string         `long:"bootstraptoken.token-runes"                     env:"BOOTSTRAPTOKEN_TOKEN_RUNES"                        description:"Runes which should be used for the random token string for bootstrap tokens" default:"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"`
+			TokenRunes                   string         `long:"bootstraptoken.token-runes"                     env:"BOOTSTRAPTOKEN_TOKEN_RUNES"                        description:"Runes which should be used for the random token string for bootstrap tokens" default:"abcdefghijklmnopqrstuvwxyz0123456789"`
 		}
 
 		Sync struct {
