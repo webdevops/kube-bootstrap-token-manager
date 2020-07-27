@@ -62,7 +62,7 @@ func (m *KubeBootstrapTokenManager) Init() {
 func (m *KubeBootstrapTokenManager) initPrometheus() {
 	m.prometheus.token = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "BootstrapToken_token_info",
+			Name: "bootstraptoken_token_info",
 			Help: "kube-bootstrap-token-manager token info",
 		},
 		[]string{"tokenID"},
@@ -71,7 +71,7 @@ func (m *KubeBootstrapTokenManager) initPrometheus() {
 
 	m.prometheus.tokenExpiration = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "BootstrapToken_token_expiration",
+			Name: "bootstraptoken_token_expiration",
 			Help: "kube-bootstrap-token-manager token expiration time",
 		},
 		[]string{"tokenID"},
@@ -80,7 +80,7 @@ func (m *KubeBootstrapTokenManager) initPrometheus() {
 
 	m.prometheus.sync = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "BootstrapToken_sync_status",
+			Name: "bootstraptoken_sync_status",
 			Help: "kube-bootstrap-token-manager sync status",
 		},
 		[]string{},
@@ -89,7 +89,7 @@ func (m *KubeBootstrapTokenManager) initPrometheus() {
 
 	m.prometheus.syncTime = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "BootstrapToken_sync_time",
+			Name: "bootstraptoken_sync_time",
 			Help: "kube-bootstrap-token-manager last sync time",
 		},
 		[]string{},
@@ -98,7 +98,7 @@ func (m *KubeBootstrapTokenManager) initPrometheus() {
 
 	m.prometheus.syncCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "BootstrapToken_sync_count",
+			Name: "bootstraptoken_sync_count",
 			Help: "kube-bootstrap-token-manager sync count",
 		},
 		[]string{},
