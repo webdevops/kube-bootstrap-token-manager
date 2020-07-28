@@ -32,6 +32,7 @@ type (
 		Sync struct {
 			Time           time.Duration `long:"sync.time"               env:"SYNC_TIME"                 description:"Sync time (time.Duration)" default:"1h"`
 			RecreateBefore time.Duration `long:"sync.recreate-before"    env:"SYNC_RECREATE_BEFORE"      description:"Time duration (time.Duration) when token should be recreated" default:"2190h"`
+			Full           bool          `long:"sync.full"               env:"SYNC_FULL"                 description:"Sync also previous tokens (full sync)"`
 		}
 
 		CloudProvider struct {

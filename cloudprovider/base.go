@@ -11,6 +11,7 @@ type (
 	CloudProvider interface {
 		Init(ctx context.Context, opts config.Opts)
 		FetchToken() (token *bootstraptoken.BootstrapToken)
+		FetchTokens() (token []*bootstraptoken.BootstrapToken)
 		StoreToken(token *bootstraptoken.BootstrapToken)
 	}
 )

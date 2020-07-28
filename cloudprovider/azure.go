@@ -7,10 +7,13 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/Azure/go-autorest/autorest/date"
 	log "github.com/sirupsen/logrus"
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
 	"os"
+	"regexp"
+	"time"
 )
 
 type (
@@ -75,32 +78,13 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken) {
 	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
-	vaultUrl := fmt.Sprintf(
-		"https://%s.%s",
-		vaultName,
-		m.environment.KeyVaultDNSSuffix,
-	)
 
-	log.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
-	secret, err := m.keyvaultClient.GetSecret(m.ctx, vaultUrl, secretName, "")
-	if err != nil {
-		switch m.getInnerErrorCodeFromAutorestError(err) {
-		case "SecretNotFound":
-			// no secret found, need to create new token
-			log.Warn("no secret found, assuming non existing token")
-			break
-		case "SecretDisabled":
-			// disabled secret, continue as there would be no token
-			log.Warn("current secret is disabled, assuming non existing token")
-			break
-		case "ForbiddenByPolicy":
-			// access is forbidden
-			log.Error("unable to access Azure KeyVault, please check access")
-			log.Panic(err)
-		default:
-			// not handled error
-			log.Panic(err)
-		}
+	contextLogger := log.WithFields(log.Fields{"keyVault": vaultName, "secretName": secretName})
+
+	contextLogger.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
+	secret, err := m.keyvaultClient.GetSecret(m.ctx, m.getKeyVaultUrl(), secretName, "")
+	if m.handleKeyvaultError(err, contextLogger) != nil {
+		contextLogger.Panic(err)
 	}
 
 	if secret.Value != nil {
@@ -119,15 +103,71 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 	return
 }
 
+func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapToken) {
+	tokens = []*bootstraptoken.BootstrapToken{}
+	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
+
+	contextLogger := log.WithFields(log.Fields{"keyVault": vaultName, "secretName": secretName})
+
+	maxResults := int32(15)
+
+	contextLogger.Infof("fetching all tokens from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
+	list, err := m.keyvaultClient.GetSecretVersions(m.ctx, m.getKeyVaultUrl(), secretName, &maxResults)
+	if m.handleKeyvaultError(err, contextLogger) != nil {
+		contextLogger.Panic(err)
+	}
+
+	for _, secret := range list.Values() {
+		secretVersion := m.getSecretVersionFromId(*secret.ID)
+		secretLogger := contextLogger.WithField("secretVersion", secretVersion)
+
+		// ignore not enabled
+		if secret.Attributes.Enabled != nil && *secret.Attributes.Enabled == false  {
+			secretLogger.Debug("ignoring, secret is disabled")
+			continue
+		}
+
+		// ignore expired secrets
+		if secret.Attributes.Expires != nil {
+			expirationTime := date.UnixEpoch().Add(secret.Attributes.Expires.Duration())
+			if expirationTime.Before(time.Now()) {
+				secretLogger.Debug("ignoring, secret is expired")
+				continue
+			}
+		}
+
+		if secretVersion != "" {
+			secret, err := m.keyvaultClient.GetSecret(m.ctx, m.getKeyVaultUrl(), secretName, secretVersion)
+			if m.handleKeyvaultError(err, contextLogger) != nil {
+				secretLogger.Panic(err)
+			}
+
+			if secret.Value != nil {
+				token := bootstraptoken.ParseFromString(*secret.Value)
+				if token != nil {
+					secretLogger.Info("found valid secret")
+					if secret.Attributes.Created != nil {
+						token.SetCreationUnixTime(*secret.Attributes.Created)
+					}
+
+					if secret.Attributes.Expires != nil {
+						token.SetExpirationUnixTime(*secret.Attributes.Expires)
+					}
+
+					tokens = append(tokens, token)
+				}
+			}
+		}
+	}
+
+	return
+}
+
 func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
 	contextLogger := m.log.WithFields(log.Fields{"token": token.Id()})
 	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
-	vaultUrl := fmt.Sprintf(
-		"https://%s.%s",
-		vaultName,
-		m.environment.KeyVaultDNSSuffix,
-	)
 
 	contextLogger.Infof("storing token to Azure KeyVault \"%s\" secret \"%s\" with expiration %s", vaultName, secretName, token.ExpirationString())
 
@@ -143,11 +183,58 @@ func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
 			Expires:   token.ExpirationUnixTime(),
 		},
 	}
-	_, err := m.keyvaultClient.SetSecret(m.ctx, vaultUrl, secretName, secretParameters)
+	_, err := m.keyvaultClient.SetSecret(m.ctx, m.getKeyVaultUrl(), secretName, secretParameters)
 	if err != nil {
 		log.Panic(err)
 	}
 }
+
+func (m *CloudProviderAzure) getKeyVaultUrl() (vaultUrl string) {
+	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	vaultUrl = fmt.Sprintf(
+		"https://%s.%s",
+		vaultName,
+		m.environment.KeyVaultDNSSuffix,
+	)
+
+	return
+}
+
+func (m *CloudProviderAzure) getSecretVersionFromId(secretId string) (version string) {
+	const resourceIDPatternText = `https://(.+)/secrets/(.+)/(.+)`
+	resourceIDPattern := regexp.MustCompile(resourceIDPatternText)
+	match := resourceIDPattern.FindStringSubmatch(secretId)
+
+	if len(match) == 4 {
+		return match[3]
+	}
+
+	return ""
+}
+
+func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) (error) {
+	if err != nil {
+		switch m.getInnerErrorCodeFromAutorestError(err) {
+		case "SecretNotFound":
+			// no secret found, need to create new token
+			logger.Warn("no secret found, assuming non existing token")
+			break
+		case "SecretDisabled":
+			// disabled secret, continue as there would be no token
+			logger.Warn("current secret is disabled, assuming non existing token")
+			break
+		case "ForbiddenByPolicy":
+			// access is forbidden
+			logger.Error("unable to access Azure KeyVault, please check access")
+			return err
+		default:
+			// not handled error
+			return err
+		}
+	}
+	return nil
+}
+
 
 func (m *CloudProviderAzure) getInnerErrorCodeFromAutorestError(err error) (code interface{}) {
 	if autorestError, ok := err.(autorest.DetailedError); ok {

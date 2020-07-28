@@ -140,6 +140,12 @@ func (m *KubeBootstrapTokenManager) initCloudProvider() {
 
 func (m *KubeBootstrapTokenManager) Start() {
 	go func() {
+		if m.Opts.Sync.Full {
+			log.Infof("starting full sync run")
+			if err := m.syncRunFull(); err != nil {
+				log.Error(err)
+			}
+		}
 		for {
 			log.Infof("starting sync run")
 			if err := m.syncRun(); err == nil {
@@ -153,6 +159,22 @@ func (m *KubeBootstrapTokenManager) Start() {
 			time.Sleep(m.Opts.Sync.Time)
 		}
 	}()
+}
+
+func (m *KubeBootstrapTokenManager) syncRunFull() error {
+	for _, token := range m.cloudProvider.FetchTokens() {
+		contextLogger := log.WithFields(log.Fields{"token": token.Id()})
+		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
+		if !m.checkTokenRenewal(token) {
+			contextLogger.Infof("valid cloud token, syncing to cluster")
+			// sync token
+			if err := m.createOrUpdateToken(token, false); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (m *KubeBootstrapTokenManager) syncRun() error {
