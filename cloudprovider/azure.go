@@ -76,18 +76,24 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 
 		log.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
 		secret, err := m.keyvaultClient.GetSecret(m.ctx, vaultUrl, secretName, "")
-		switch m.getInnerErrorCodeFromAutorestError(err) {
-		case "SecretDisabled":
-			// disabled secret, continue as there would be no token
-			log.Warn("current secret is disabled, assuming non existing token")
-			break
-		case "ForbiddenByPolicy":
-			// access is forbidden
-			log.Error("unable to access Azure KeyVault, please check access")
-			log.Panic(err)
-		default:
-			// not handled error
-			log.Panic(err)
+		if err != nil {
+			switch m.getInnerErrorCodeFromAutorestError(err) {
+			case "SecretNotFound":
+				// no secret found, need to create new token
+				log.Warn("no secret found, assuming non existing token")
+				break
+			case "SecretDisabled":
+				// disabled secret, continue as there would be no token
+				log.Warn("current secret is disabled, assuming non existing token")
+				break
+			case "ForbiddenByPolicy":
+				// access is forbidden
+				log.Error("unable to access Azure KeyVault, please check access")
+				log.Panic(err)
+			default:
+				// not handled error
+				log.Panic(err)
+			}
 		}
 
 		if secret.Value != nil {
