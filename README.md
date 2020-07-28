@@ -23,7 +23,7 @@ Usage:
 
 Application Options:
       --debug                                          debug mode [$DEBUG]
-  -v, --verbose                                        verbose mode [$VERBOSE]
+      --trace                                          verbose mode [$TRACE]
       --log.json                                       Switch log output to json format [$LOG_JSON]
       --bootstraptoken.id-template=                    Template for token ID for bootstrap tokens (default: {{.Date}}) [$BOOTSTRAPTOKEN_ID_TEMPLATE]
       --bootstraptoken.name=                           Name for bootstrap tokens (default: bootstrap-token-%s) [$BOOTSTRAPTOKEN_NAME]
@@ -35,15 +35,16 @@ Application Options:
       --bootstraptoken.auth-extra-groups=              Auth extra groups for bootstrap tokens (default: system:bootstrappers:worker,system:bootstrappers:ingress) [$BOOTSTRAPTOKEN_AUTH_EXTRA_GROUPS]
       --bootstraptoken.expiration=                     Expiration (time.Duration) for bootstrap tokens (default: 8760h) [$BOOTSTRAPTOKEN_EXPIRATION]
       --bootstraptoken.token-length=                   Length of the random token string for bootstrap tokens (default: 16) [$BOOTSTRAPTOKEN_TOKEN_LENGTH]
-      --bootstraptoken.token-runes=                    Runes which should be used for the random token string for bootstrap tokens (default:
-                                                       abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789) [$BOOTSTRAPTOKEN_TOKEN_RUNES]
+      --bootstraptoken.token-runes=                    Runes which should be used for the random token string for bootstrap tokens (default: abcdefghijklmnopqrstuvwxyz0123456789)
+                                                       [$BOOTSTRAPTOKEN_TOKEN_RUNES]
       --sync.time=                                     Sync time (time.Duration) (default: 1h) [$SYNC_TIME]
       --sync.recreate-before=                          Time duration (time.Duration) when token should be recreated (default: 2190h) [$SYNC_RECREATE_BEFORE]
+      --sync.full                                      Sync also previous tokens (full sync) [$SYNC_FULL]
       --cloud-provider=[azure]                         Cloud provider [$CLOUD_PROVIDER]
       --cloud-config=                                  Cloud provider configuration path [$CLOUD_CONFIG]
       --azure-environment=                             Azure environment name [$AZURE_ENVIRONMENT]
       --azure.keyvault-name=                           Name of Keyvault to sync token [$AZURE_KEYVAULT_NAME]
-      --azure.keyvault-secret-name=                    Name of Keyvault secret to sync token (default: kube-bootstrapt-token) [$AZURE_KEYVAULT_SECRET_NAME]
+      --azure.keyvault-secret-name=                    Name of Keyvault secret to sync token (default: kube-bootstrap-token) [$AZURE_KEYVAULT_SECRET_NAME]
       --dry-run                                        Dry run (do not apply to nodes) [$DRY_RUN]
       --bind=                                          Server address (default: :8080) [$SERVER_BIND]
 
