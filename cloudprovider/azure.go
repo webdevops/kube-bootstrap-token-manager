@@ -123,7 +123,7 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 		secretLogger := contextLogger.WithField("secretVersion", secretVersion)
 
 		// ignore not enabled
-		if secret.Attributes.Enabled != nil && *secret.Attributes.Enabled == false  {
+		if secret.Attributes.Enabled != nil && *secret.Attributes.Enabled == false {
 			secretLogger.Debug("ignoring, secret is disabled")
 			continue
 		}
@@ -212,7 +212,7 @@ func (m *CloudProviderAzure) getSecretVersionFromId(secretId string) (version st
 	return ""
 }
 
-func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) (error) {
+func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) error {
 	if err != nil {
 		switch m.getInnerErrorCodeFromAutorestError(err) {
 		case "SecretNotFound":
@@ -234,7 +234,6 @@ func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) (
 	}
 	return nil
 }
-
 
 func (m *CloudProviderAzure) getInnerErrorCodeFromAutorestError(err error) (code interface{}) {
 	if autorestError, ok := err.(autorest.DetailedError); ok {
