@@ -122,6 +122,11 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 		secretVersion := m.getSecretVersionFromId(*secret.ID)
 		secretLogger := contextLogger.WithField("secretVersion", secretVersion)
 
+		if secret.Attributes == nil {
+			secretLogger.Debug("ignoring, secret attributes are not set")
+			continue
+		}
+
 		// ignore not enabled
 		if secret.Attributes.Enabled != nil && *secret.Attributes.Enabled == false {
 			secretLogger.Debug("ignoring, secret is disabled")
