@@ -80,7 +80,6 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 		case "SecretDisabled":
 			// disabled secret, continue as there would be no token
 			log.Warn("current secret is disabled, assuming non existing token")
-			err = nil
 			break
 		case "ForbiddenByPolicy":
 			// access is forbidden
