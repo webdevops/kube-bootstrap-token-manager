@@ -11,7 +11,7 @@ type (
 		// logger
 		Logger struct {
 			Debug   bool `           long:"debug"        env:"DEBUG"    description:"debug mode"`
-			Verbose bool `short:"v"  long:"verbose"      env:"VERBOSE"  description:"verbose mode"`
+			Trace   bool `           long:"trace"        env:"TRACE"    description:"verbose mode"`
 			LogJson bool `           long:"log.json"     env:"LOG_JSON" description:"Switch log output to json format"`
 		}
 

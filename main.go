@@ -61,13 +61,13 @@ func initArgparser() {
 		}
 	}
 
-	// verbose level
-	if opts.Logger.Verbose {
+	// debug level
+	if opts.Logger.Debug {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// debug level
-	if opts.Logger.Debug {
+	// trace level
+	if opts.Logger.Trace {
 		log.SetReportCaller(true)
 		log.SetLevel(log.TraceLevel)
 		log.SetFormatter(&log.TextFormatter{
