@@ -34,6 +34,14 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 	m.opts = opts
 	m.log = log.WithField("cloudprovider", "azure")
 
+	if m.opts.CloudProvider.Azure.KeyVaultName == nil || *m.opts.CloudProvider.Azure.KeyVaultName == "" {
+		m.log.Panic("no Azure KeyVault name specified")
+	}
+
+	if m.opts.CloudProvider.Azure.KeyVaultSecretName == nil || *m.opts.CloudProvider.Azure.KeyVaultSecretName == "" {
+		m.log.Panic("no Azure KeyVault secret name specified")
+	}
+
 	if m.opts.CloudProvider.Config != nil {
 		os.Setenv("AZURE_AUTH_LOCATION", *m.opts.CloudProvider.Config)
 	}
@@ -65,47 +73,45 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 }
 
 func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken) {
-	if m.opts.CloudProvider.Azure.KeyVaultName != nil && m.opts.CloudProvider.Azure.KeyVaultSecretName != nil {
-		vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
-		secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
-		vaultUrl := fmt.Sprintf(
-			"https://%s.%s",
-			vaultName,
-			m.environment.KeyVaultDNSSuffix,
-		)
+	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
+	vaultUrl := fmt.Sprintf(
+		"https://%s.%s",
+		vaultName,
+		m.environment.KeyVaultDNSSuffix,
+	)
 
-		log.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
-		secret, err := m.keyvaultClient.GetSecret(m.ctx, vaultUrl, secretName, "")
-		if err != nil {
-			switch m.getInnerErrorCodeFromAutorestError(err) {
-			case "SecretNotFound":
-				// no secret found, need to create new token
-				log.Warn("no secret found, assuming non existing token")
-				break
-			case "SecretDisabled":
-				// disabled secret, continue as there would be no token
-				log.Warn("current secret is disabled, assuming non existing token")
-				break
-			case "ForbiddenByPolicy":
-				// access is forbidden
-				log.Error("unable to access Azure KeyVault, please check access")
-				log.Panic(err)
-			default:
-				// not handled error
-				log.Panic(err)
-			}
+	log.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
+	secret, err := m.keyvaultClient.GetSecret(m.ctx, vaultUrl, secretName, "")
+	if err != nil {
+		switch m.getInnerErrorCodeFromAutorestError(err) {
+		case "SecretNotFound":
+			// no secret found, need to create new token
+			log.Warn("no secret found, assuming non existing token")
+			break
+		case "SecretDisabled":
+			// disabled secret, continue as there would be no token
+			log.Warn("current secret is disabled, assuming non existing token")
+			break
+		case "ForbiddenByPolicy":
+			// access is forbidden
+			log.Error("unable to access Azure KeyVault, please check access")
+			log.Panic(err)
+		default:
+			// not handled error
+			log.Panic(err)
 		}
+	}
 
-		if secret.Value != nil {
-			token = bootstraptoken.ParseFromString(*secret.Value)
-			if token != nil {
-				if secret.Attributes.Created != nil {
-					token.SetCreationUnixTime(*secret.Attributes.Created)
-				}
+	if secret.Value != nil {
+		token = bootstraptoken.ParseFromString(*secret.Value)
+		if token != nil {
+			if secret.Attributes.Created != nil {
+				token.SetCreationUnixTime(*secret.Attributes.Created)
+			}
 
-				if secret.Attributes.Expires != nil {
-					token.SetExpirationUnixTime(*secret.Attributes.Expires)
-				}
+			if secret.Attributes.Expires != nil {
+				token.SetExpirationUnixTime(*secret.Attributes.Expires)
 			}
 		}
 	}
@@ -115,33 +121,31 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 
 func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
 	contextLogger := m.log.WithFields(log.Fields{"token": token.Id()})
-	if m.opts.CloudProvider.Azure.KeyVaultName != nil && m.opts.CloudProvider.Azure.KeyVaultSecretName != nil {
-		vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
-		secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
-		vaultUrl := fmt.Sprintf(
-			"https://%s.%s",
-			vaultName,
-			m.environment.KeyVaultDNSSuffix,
-		)
+	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
+	vaultUrl := fmt.Sprintf(
+		"https://%s.%s",
+		vaultName,
+		m.environment.KeyVaultDNSSuffix,
+	)
 
-		contextLogger.Infof("storing token to Azure KeyVault \"%s\" secret \"%s\" with expiration %s", vaultName, secretName, token.ExpirationString())
+	contextLogger.Infof("storing token to Azure KeyVault \"%s\" secret \"%s\" with expiration %s", vaultName, secretName, token.ExpirationString())
 
-		secretParameters := keyvault.SecretSetParameters{
-			Value: stringPtr(token.FullToken()),
-			Tags: map[string]*string{
-				"managed-by": stringPtr("kube-bootstrap-token-manager"),
-				"token":      stringPtr(token.Id()),
-			},
-			ContentType: stringPtr("kube-bootstrap-token"),
-			SecretAttributes: &keyvault.SecretAttributes{
-				NotBefore: token.CreationUnixTime(),
-				Expires:   token.ExpirationUnixTime(),
-			},
-		}
-		_, err := m.keyvaultClient.SetSecret(m.ctx, vaultUrl, secretName, secretParameters)
-		if err != nil {
-			log.Panic(err)
-		}
+	secretParameters := keyvault.SecretSetParameters{
+		Value: stringPtr(token.FullToken()),
+		Tags: map[string]*string{
+			"managed-by": stringPtr("kube-bootstrap-token-manager"),
+			"token":      stringPtr(token.Id()),
+		},
+		ContentType: stringPtr("kube-bootstrap-token"),
+		SecretAttributes: &keyvault.SecretAttributes{
+			NotBefore: token.CreationUnixTime(),
+			Expires:   token.ExpirationUnixTime(),
+		},
+	}
+	_, err := m.keyvaultClient.SetSecret(m.ctx, vaultUrl, secretName, secretParameters)
+	if err != nil {
+		log.Panic(err)
 	}
 }
 
