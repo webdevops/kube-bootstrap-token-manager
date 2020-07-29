@@ -81,7 +81,7 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 
 	contextLogger := log.WithFields(log.Fields{"keyVault": vaultName, "secretName": secretName})
 
-	contextLogger.Infof("fetching newest token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
+	contextLogger.Infof("fetching current token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
 	secret, err := m.keyvaultClient.GetSecret(m.ctx, m.getKeyVaultUrl(), secretName, "")
 	if m.handleKeyvaultError(err, contextLogger) != nil {
 		contextLogger.Panic(err)

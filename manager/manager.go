@@ -10,6 +10,7 @@ import (
 	"github.com/webdevops/kube-bootstrap-token-manager/cloudprovider"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -229,11 +230,15 @@ func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.Bo
 	resourceNs := m.Opts.BootstrapToken.Namespace
 
 	resource, err := m.k8sClient.CoreV1().Secrets(resourceNs).Get(m.ctx, resourceName, v1.GetOptions{})
-	if resource == nil && err != nil {
-		return err
-	}
-
-	if resource == nil || resource.UID == "" {
+	if err == nil {
+		// update
+		contextLogger.Infof("updating existing bootstrap token \"%s\" with expiration %s", resourceName, token.ExpirationString())
+		resource = m.updateTokenData(resource, token)
+		if _, err := m.k8sClient.CoreV1().Secrets(resourceNs).Update(m.ctx, resource, v1.UpdateOptions{}); err != nil {
+			return err
+		}
+	} else if errors.IsNotFound(err) {
+		// create
 		resource = &corev1.Secret{}
 		resource.SetName(resourceName)
 		resource.SetNamespace(resourceNs)
@@ -244,11 +249,8 @@ func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.Bo
 			return err
 		}
 	} else {
-		contextLogger.Infof("updating existing bootstrap token \"%s\" with expiration %s", resourceName, token.ExpirationString())
-		resource = m.updateTokenData(resource, token)
-		if _, err := m.k8sClient.CoreV1().Secrets(resourceNs).Update(m.ctx, resource, v1.UpdateOptions{}); err != nil {
-			return err
-		}
+		// error
+		return err
 	}
 
 	if syncToCloud {
