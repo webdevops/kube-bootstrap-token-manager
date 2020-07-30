@@ -16,6 +16,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
 	"math/rand"
 	"os"
 	"text/template"
@@ -229,34 +230,51 @@ func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.Bo
 	resourceName := fmt.Sprintf(m.Opts.BootstrapToken.Name, token.Id())
 	resourceNs := m.Opts.BootstrapToken.Namespace
 
-	resource, err := m.k8sClient.CoreV1().Secrets(resourceNs).Get(m.ctx, resourceName, v1.GetOptions{})
-	if err == nil {
-		// update
-		contextLogger.Infof("updating existing bootstrap token \"%s\" with expiration %s", resourceName, token.ExpirationString())
-		resource = m.updateTokenData(resource, token)
-		if _, err := m.k8sClient.CoreV1().Secrets(resourceNs).Update(m.ctx, resource, v1.UpdateOptions{}); err != nil {
-			return err
+	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
+		switch {
+		case errors.IsServerTimeout(err):
+			return true
+		case errors.IsConflict(err):
+			return true
+		case errors.IsTimeout(err):
+			return true
 		}
-	} else if errors.IsNotFound(err) {
-		// create
-		resource = &corev1.Secret{}
-		resource.SetName(resourceName)
-		resource.SetNamespace(resourceNs)
+		return false
+	}, func() error {
+		resource, err := m.k8sClient.CoreV1().Secrets(resourceNs).Get(m.ctx, resourceName, v1.GetOptions{})
+		if err == nil {
+			// update
+			contextLogger.Infof("updating existing bootstrap token \"%s\" with expiration %s", resourceName, token.ExpirationString())
+			resource = m.updateTokenData(resource, token)
+			if _, err := m.k8sClient.CoreV1().Secrets(resourceNs).Update(m.ctx, resource, v1.UpdateOptions{}); err != nil {
+				return err
+			}
+		} else if errors.IsNotFound(err) {
+			// create
+			resource = &corev1.Secret{}
+			resource.SetName(resourceName)
+			resource.SetNamespace(resourceNs)
 
-		contextLogger.Infof("creating new bootstrap token \"%s\" with expiration %s", resourceName, token.ExpirationString())
-		resource = m.updateTokenData(resource, token)
-		if _, err := m.k8sClient.CoreV1().Secrets(resourceNs).Create(m.ctx, resource, v1.CreateOptions{}); err != nil {
+			contextLogger.Infof("creating new bootstrap token \"%s\" with expiration %s", resourceName, token.ExpirationString())
+			resource = m.updateTokenData(resource, token)
+			if _, err := m.k8sClient.CoreV1().Secrets(resourceNs).Create(m.ctx, resource, v1.CreateOptions{}); err != nil {
+				return err
+			}
+		} else {
+			// error
 			return err
 		}
-	} else {
-		// error
+
+		return nil
+	})
+	if err != nil {
 		return err
 	}
 
 	if syncToCloud {
 		m.cloudProvider.StoreToken(token)
 	} else {
-		contextLogger.Infof("not syncing token to cloud, not needed")
+		contextLogger.Debug("not syncing token to cloud, not needed")
 	}
 
 	m.prometheus.token.WithLabelValues(token.Id()).Set(1)
