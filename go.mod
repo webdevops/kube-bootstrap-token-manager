@@ -1,6 +1,6 @@
 module github.com/webdevops/kube-bootstrap-token-manager
 
-go 1.14
+go 1.15
 
 require (
 	github.com/Azure/azure-sdk-for-go v44.2.0+incompatible
