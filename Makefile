@@ -26,6 +26,9 @@ vendor:
 image: build
 	docker build -t $(NAME):$(TAG) .
 
+build-push-development:
+	docker build -t webdevops/$(NAME):development . && docker push webdevops/$(NAME):development
+
 test:
 	go test ./...
 
