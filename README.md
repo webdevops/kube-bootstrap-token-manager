@@ -2,8 +2,8 @@ Kubernetes node bootstrap token manager
 ========================================
 
 [![license](https://img.shields.io/github/license/webdevops/kube-bootstrap-token-manager.svg)](https://github.com/webdevops/kube-bootstrap-token-manager/blob/master/LICENSE)
-[![Docker](https://img.shields.io/docker/cloud/automated/webdevops/kube-bootstrap-token-manager)](https://hub.docker.com/r/webdevops/kube-bootstrap-token-manager/)
-[![Docker Build Status](https://img.shields.io/docker/cloud/build/webdevops/kube-bootstrap-token-manager)](https://hub.docker.com/r/webdevops/kube-bootstrap-token-manager/)
+[![DockerHub](https://img.shields.io/badge/DockerHub-webdevops%2Fkube--bootstrap--token--manager-blue)](https://hub.docker.com/r/webdevops/kube-bootstrap-token-manager/)
+[![Quay.io](https://img.shields.io/badge/Quay.io-webdevops%2Fkube--bootstrap--token--manager-blue)](https://quay.io/repository/webdevops/kube-bootstrap-token-manager)
 
 Manager for Node bootstrap tokens for Kubernetes.
 
