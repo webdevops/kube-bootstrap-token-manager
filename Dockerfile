@@ -5,7 +5,7 @@ WORKDIR /go/src/github.com/webdevops/kube-bootstrap-token-manager
 # Get deps (cached)
 COPY ./go.mod /go/src/github.com/webdevops/kube-bootstrap-token-manager
 COPY ./go.sum /go/src/github.com/webdevops/kube-bootstrap-token-manager
-COPY ./Makefile /go/src/github.com/webdevops/kube-pool-manager
+COPY ./Makefile /go/src/github.com/webdevops/kube-bootstrap-token-manager
 RUN make dependencies
 
 # Compile
