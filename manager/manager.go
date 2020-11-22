@@ -357,9 +357,5 @@ func (m *KubeBootstrapTokenManager) checkTokenRenewal(token *bootstraptoken.Boot
 	}
 
 	renewalTime := time.Now().Add(m.Opts.Sync.RecreateBefore)
-	if token.ExpirationTime().Before(renewalTime) {
-		return true
-	}
-
-	return false
+	return token.ExpirationTime().Before(renewalTime)
 }

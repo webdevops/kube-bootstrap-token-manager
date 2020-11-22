@@ -47,7 +47,7 @@ func (t *BootstrapToken) ExpirationString() (expiration string) {
 		expiration = fmt.Sprintf(
 			"%s (%s)",
 			t.expirationTime.Format(time.RFC3339),
-			t.expirationTime.Sub(time.Now()),
+			time.Until(*t.expirationTime),
 		)
 	}
 

@@ -128,7 +128,7 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 		}
 
 		// ignore not enabled
-		if secret.Attributes.Enabled != nil && *secret.Attributes.Enabled == false {
+		if secret.Attributes.Enabled != nil && !*secret.Attributes.Enabled {
 			secretLogger.Debug("ignoring, secret is disabled")
 			continue
 		}
@@ -223,11 +223,9 @@ func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) e
 		case "SecretNotFound":
 			// no secret found, need to create new token
 			logger.Warn("no secret found, assuming non existing token")
-			break
 		case "SecretDisabled":
 			// disabled secret, continue as there would be no token
 			logger.Warn("current secret is disabled, assuming non existing token")
-			break
 		case "ForbiddenByPolicy":
 			// access is forbidden
 			logger.Error("unable to access Azure KeyVault, please check access")
