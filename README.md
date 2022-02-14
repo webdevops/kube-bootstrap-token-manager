@@ -3,6 +3,7 @@
 [![license](https://img.shields.io/github/license/webdevops/kube-bootstrap-token-manager.svg)](https://github.com/webdevops/kube-bootstrap-token-manager/blob/master/LICENSE)
 [![DockerHub](https://img.shields.io/badge/DockerHub-webdevops%2Fkube--bootstrap--token--manager-blue)](https://hub.docker.com/r/webdevops/kube-bootstrap-token-manager/)
 [![Quay.io](https://img.shields.io/badge/Quay.io-webdevops%2Fkube--bootstrap--token--manager-blue)](https://quay.io/repository/webdevops/kube-bootstrap-token-manager)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/kube-bootstrap-token-manager)](https://artifacthub.io/packages/search?repo=kube-bootstrap-token-manager)
 
 Manager for Node bootstrap tokens for Kubernetes.
 
@@ -63,6 +64,40 @@ for Azure API authentication (using ENV vars) see https://docs.microsoft.com/en-
 | `bootstraptoken_sync_status`       | Status if sync was successfull                  |
 | `bootstraptoken_sync_time`         | Timestamp of last sync                          |
 | `bootstraptoken_sync_count`        | Counter of sync                                 |
+
+### AzureTracing metrics
+
+(with 22.2.0 and later)
+
+Azuretracing metrics collects latency and latency from azure-sdk-for-go and creates metrics and is controllable using
+environment variables (eg. setting buckets, disabling metrics or disable autoreset).
+
+| Metric                                   | Description                                                                            |
+|------------------------------------------|----------------------------------------------------------------------------------------|
+| `azurerm_api_ratelimit`                  | Azure ratelimit metrics (only on /metrics, resets after query due to limited validity) |
+| `azurerm_api_request_*`                  | Azure request count and latency as histogram                                           |
+
+#### Settings
+
+| Environment variable                     | Example                            | Description                                                    |
+|------------------------------------------|------------------------------------|----------------------------------------------------------------|
+| `METRIC_AZURERM_API_REQUEST_BUCKETS`     | `1, 2.5, 5, 10, 30, 60, 90, 120`   | Sets buckets for `azurerm_api_request` histogram metric        |
+| `METRIC_AZURERM_API_REQUEST_ENABLE`      | `false`                            | Enables/disables `azurerm_api_request_*` metric                |
+| `METRIC_AZURERM_API_REQUEST_LABELS`      | `apiEndpoint, method, statusCode`  | Controls labels of `azurerm_api_request_*` metric              |
+| `METRIC_AZURERM_API_RATELIMIT_ENABLE`    | `false`                            | Enables/disables `azurerm_api_ratelimit` metric                |
+| `METRIC_AZURERM_API_RATELIMIT_AUTORESET` | `false`                            | Enables/disables `azurerm_api_ratelimit` autoreset after fetch |
+
+
+| `azurerm_api_request` label | Status             | Description                                                                                              |
+|-----------------------------|--------------------|----------------------------------------------------------------------------------------------------------|
+| `apiEndpoint`               | enabled by default | hostname of endpoint (max 3 parts)                                                                       |
+| `routingRegion`             | enabled by default | detected region for API call, either routing region from Azure Management API or Azure resource location |
+| `subscriptionID`            | enabled by default | detected subscriptionID                                                                                  |
+| `tenantID`                  | enabled by default | detected tenantID (extracted from jwt auth token)                                                        |
+| `resourceProvider`          | enabled by default | detected Azure Management API provider                                                                   |
+| `method`                    | enabled by default | HTTP method                                                                                              |
+| `statusCode`                | enabled by default | HTTP status code                                                                                         |
+
 
 ## Kubernetes deployment
 
