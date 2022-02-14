@@ -3,6 +3,7 @@ package manager
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
@@ -17,7 +18,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
-	"math/rand"
+	"math/big"
 	"os"
 	"text/template"
 	"time"
@@ -50,7 +51,6 @@ type (
 
 func (m *KubeBootstrapTokenManager) Init() {
 	m.ctx = context.Background()
-	rand.Seed(time.Now().UnixNano())
 	m.initK8s()
 	m.initPrometheus()
 	m.initCloudProvider()
@@ -332,9 +332,13 @@ func (m *KubeBootstrapTokenManager) generateTokenId() string {
 func (m *KubeBootstrapTokenManager) generateTokenSecret() string {
 	b := make([]rune, m.Opts.BootstrapToken.TokenLength)
 	runes := []rune(m.Opts.BootstrapToken.TokenRunes)
-	runeLength := len(runes)
+	runeLength := int64(len(runes))
 	for i := range b {
-		b[i] = runes[rand.Intn(runeLength)]
+		if val, err := rand.Int(rand.Reader, big.NewInt(runeLength)); err == nil {
+			b[i] = runes[val.Uint64()]
+		} else {
+			log.Panic(err)
+		}
 	}
 	return string(b)
 }

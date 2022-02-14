@@ -47,7 +47,9 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 	}
 
 	if m.opts.CloudProvider.Config != nil {
-		os.Setenv("AZURE_AUTH_LOCATION", *m.opts.CloudProvider.Config)
+		if err := os.Setenv("AZURE_AUTH_LOCATION", *m.opts.CloudProvider.Config); err != nil {
+			m.log.Panic(err)
+		}
 	}
 
 	// environment
