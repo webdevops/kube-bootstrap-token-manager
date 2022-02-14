@@ -1,5 +1,4 @@
-Kubernetes node bootstrap token manager
-========================================
+# Kubernetes node bootstrap token manager
 
 [![license](https://img.shields.io/github/license/webdevops/kube-bootstrap-token-manager.svg)](https://github.com/webdevops/kube-bootstrap-token-manager/blob/master/LICENSE)
 [![DockerHub](https://img.shields.io/badge/DockerHub-webdevops%2Fkube--bootstrap--token--manager-blue)](https://hub.docker.com/r/webdevops/kube-bootstrap-token-manager/)
@@ -14,8 +13,7 @@ Azure:
 - (re)creates token inside Kubernetes and ensures it existence
 - Manages renewal if token is going to be expired
 
-Configuration
--------------
+## Configuration
 
 ```
 Usage:
@@ -52,10 +50,9 @@ Help Options:
   -h, --help                                           Show this help message
 ```
 
-for Azure API authentication (using ENV vars) see https://github.com/Azure/azure-sdk-for-go#authentication
+for Azure API authentication (using ENV vars) see https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authentication
 
-Metrics
--------
+## Metrics
 
  (see `:8080/metrics`)
 
@@ -67,7 +64,6 @@ Metrics
 | `bootstraptoken_sync_time`         | Timestamp of last sync                          |
 | `bootstraptoken_sync_count`        | Counter of sync                                 |
 
-Kubernetes deployment
----------------------
+## Kubernetes deployment
 
 see [deployment](/deployment)
