@@ -5,6 +5,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"github.com/webdevops/go-prometheus-common/azuretracing"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
 	"github.com/webdevops/kube-bootstrap-token-manager/manager"
 	"net/http"
@@ -101,6 +102,7 @@ func startHttpServer() {
 		}
 	})
 
-	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", azuretracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
+
 	log.Fatal(http.ListenAndServe(opts.ServerBind, nil))
 }

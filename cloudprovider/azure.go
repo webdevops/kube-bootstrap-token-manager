@@ -9,6 +9,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/date"
 	log "github.com/sirupsen/logrus"
+	"github.com/webdevops/go-prometheus-common/azuretracing"
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
 	"os"
@@ -71,7 +72,7 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
 
 	// keyvault client
 	client := keyvault.New()
-	client.Authorizer = m.authorizer
+	m.decorateAzureAutorestClient(&client.Client)
 	m.keyvaultClient = &client
 }
 
@@ -249,4 +250,9 @@ func (m *CloudProviderAzure) getInnerErrorCodeFromAutorestError(err error) (code
 		}
 	}
 	return
+}
+
+func (m *CloudProviderAzure) decorateAzureAutorestClient(client *autorest.Client) {
+	client.Authorizer = m.authorizer
+	azuretracing.DecorateAzureAutoRestClient(client)
 }
