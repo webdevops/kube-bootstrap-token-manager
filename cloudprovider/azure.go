@@ -13,7 +13,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/date"
 	log "github.com/sirupsen/logrus"
-	"github.com/webdevops/go-prometheus-common/azuretracing"
+	"github.com/webdevops/go-common/prometheus/azuretracing"
 
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"

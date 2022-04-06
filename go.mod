@@ -3,14 +3,14 @@ module github.com/webdevops/kube-bootstrap-token-manager
 go 1.17
 
 require (
-	github.com/Azure/azure-sdk-for-go v61.5.0+incompatible
+	github.com/Azure/azure-sdk-for-go v63.1.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.24
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.11
 	github.com/Azure/go-autorest/autorest/date v0.3.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/prometheus/client_golang v1.12.1
 	github.com/sirupsen/logrus v1.8.1
-	github.com/webdevops/go-prometheus-common v0.0.0-20220214222004-cea8f38b44b7
+	github.com/webdevops/go-common v0.0.0-20220406110653-237539a358b2
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v0.23.3
@@ -49,7 +49,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
+	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
