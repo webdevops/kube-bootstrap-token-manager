@@ -3,6 +3,10 @@ package cloudprovider
 import (
 	"context"
 	"fmt"
+	"os"
+	"regexp"
+	"time"
+
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -10,11 +14,9 @@ import (
 	"github.com/Azure/go-autorest/autorest/date"
 	log "github.com/sirupsen/logrus"
 	"github.com/webdevops/go-prometheus-common/azuretracing"
+
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
-	"os"
-	"regexp"
-	"time"
 )
 
 type (

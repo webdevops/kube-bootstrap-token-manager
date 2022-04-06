@@ -2,7 +2,9 @@ package cloudprovider
 
 import (
 	"context"
+
 	log "github.com/sirupsen/logrus"
+
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
 )

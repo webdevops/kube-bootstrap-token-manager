@@ -2,9 +2,10 @@ package bootstraptoken
 
 import (
 	"fmt"
-	"github.com/Azure/go-autorest/autorest/date"
 	"strings"
 	"time"
+
+	"github.com/Azure/go-autorest/autorest/date"
 )
 
 type (

@@ -2,17 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
-	"github.com/webdevops/go-prometheus-common/azuretracing"
-	"github.com/webdevops/kube-bootstrap-token-manager/config"
-	"github.com/webdevops/kube-bootstrap-token-manager/manager"
 	"net/http"
 	"os"
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/jessevdk/go-flags"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
+	"github.com/webdevops/go-prometheus-common/azuretracing"
+
+	"github.com/webdevops/kube-bootstrap-token-manager/config"
+	"github.com/webdevops/kube-bootstrap-token-manager/manager"
 )
 
 const (

@@ -5,11 +5,13 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"math/big"
+	"os"
+	"text/template"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
-	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
-	"github.com/webdevops/kube-bootstrap-token-manager/cloudprovider"
-	"github.com/webdevops/kube-bootstrap-token-manager/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,10 +20,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
-	"math/big"
-	"os"
-	"text/template"
-	"time"
+
+	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
+	"github.com/webdevops/kube-bootstrap-token-manager/cloudprovider"
+	"github.com/webdevops/kube-bootstrap-token-manager/config"
 )
 
 type (
