@@ -48,8 +48,15 @@ type (
 		}
 
 		// general options
-		DryRun     bool   `long:"dry-run"  env:"DRY_RUN"       description:"Dry run (do not apply to nodes)"`
-		ServerBind string `long:"bind"     env:"SERVER_BIND"   description:"Server address"     default:":8080"`
+		DryRun bool `long:"dry-run"  env:"DRY_RUN"       description:"Dry run (do not apply to nodes)"`
+
+		// general options
+		Server struct {
+			// general options
+			Bind         string        `long:"server.bind"              env:"SERVER_BIND"           description:"Server address"        default:":8080"`
+			ReadTimeout  time.Duration `long:"server.timeout.read"      env:"SERVER_TIMEOUT_READ"   description:"Server read timeout"   default:"5s"`
+			WriteTimeout time.Duration `long:"server.timeout.write"     env:"SERVER_TIMEOUT_WRITE"  description:"Server write timeout"  default:"10s"`
+		}
 	}
 )
 

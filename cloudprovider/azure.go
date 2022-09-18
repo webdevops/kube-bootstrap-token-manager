@@ -244,7 +244,11 @@ func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) e
 }
 
 func (m *CloudProviderAzure) getInnerErrorCodeFromAutorestError(err error) (code interface{}) {
+	// TODO: check better error handling
+
+	// nolint:errorlint
 	if autorestError, ok := err.(autorest.DetailedError); ok {
+		// nolint:errorlint
 		if azureRequestError, ok := autorestError.Original.(*azure.RequestError); ok {
 			if azureRequestError.ServiceError != nil {
 				if errorCode, exists := azureRequestError.ServiceError.InnerError["code"]; exists {

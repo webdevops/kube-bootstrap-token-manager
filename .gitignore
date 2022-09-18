@@ -1,3 +1,4 @@
 /vendor
 /kube-bootstrap-token-manager
 *.exe
+/release-assets
