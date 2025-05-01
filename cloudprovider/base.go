@@ -2,8 +2,10 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
@@ -11,7 +13,7 @@ import (
 
 type (
 	CloudProvider interface {
-		Init(ctx context.Context, opts config.Opts)
+		Init(ctx context.Context, opts config.Opts, logger *zap.SugaredLogger, userAgent string)
 		FetchToken() (token *bootstraptoken.BootstrapToken)
 		FetchTokens() (token []*bootstraptoken.BootstrapToken)
 		StoreToken(token *bootstraptoken.BootstrapToken)
@@ -19,11 +21,10 @@ type (
 )
 
 func NewCloudProvider(provider string) CloudProvider {
-	switch provider {
+	switch strings.ToLower(provider) {
 	case "azure":
 		return &CloudProviderAzure{}
 	}
 
-	log.Panicf("Cloud provider \"%s\" not available", provider)
-	return nil
+	panic(fmt.Sprintf("Cloud provider \"%s\" not available", provider))
 }

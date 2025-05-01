@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,8 +28,10 @@ import (
 
 type (
 	KubeBootstrapTokenManager struct {
-		Opts    config.Opts
-		Version string
+		Opts      config.Opts
+		Version   string
+		Logger    *zap.SugaredLogger
+		UserAgent string
 
 		ctx       context.Context
 		k8sClient *kubernetes.Clientset
@@ -60,7 +62,7 @@ func (m *KubeBootstrapTokenManager) Init() {
 	if t, err := template.New("BootstrapTokenId").Parse(m.Opts.BootstrapToken.IdTemplate); err == nil {
 		m.bootstrapToken.idTemplate = t
 	} else {
-		log.Panic(err)
+		m.Logger.Panic(err)
 	}
 }
 
@@ -137,27 +139,27 @@ func (r *KubeBootstrapTokenManager) initK8s() {
 }
 
 func (m *KubeBootstrapTokenManager) initCloudProvider() {
-	log.Infof("using cloud provider \"%s\"", *m.Opts.CloudProvider.Provider)
+	m.Logger.Infof("using cloud provider \"%s\"", *m.Opts.CloudProvider.Provider)
 	m.cloudProvider = cloudprovider.NewCloudProvider(*m.Opts.CloudProvider.Provider)
-	m.cloudProvider.Init(m.ctx, m.Opts)
+	m.cloudProvider.Init(m.ctx, m.Opts, m.Logger, m.UserAgent)
 }
 
 func (m *KubeBootstrapTokenManager) Start() {
 	go func() {
 		if m.Opts.Sync.Full {
-			log.Infof("starting full sync run")
+			m.Logger.Infof("starting full sync run")
 			if err := m.syncRunFull(); err != nil {
-				log.Error(err)
+				m.Logger.Error(err)
 			}
 		}
 		for {
-			log.Infof("starting sync run")
+			m.Logger.Infof("starting sync run")
 			if err := m.syncRun(); err == nil {
 				m.prometheus.sync.WithLabelValues().Set(1)
 				m.prometheus.syncCount.WithLabelValues().Inc()
 				m.prometheus.syncTime.WithLabelValues().SetToCurrentTime()
 			} else {
-				log.Error(err)
+				m.Logger.Error(err)
 				m.prometheus.sync.WithLabelValues().Set(0)
 			}
 			time.Sleep(m.Opts.Sync.Time)
@@ -167,7 +169,7 @@ func (m *KubeBootstrapTokenManager) Start() {
 
 func (m *KubeBootstrapTokenManager) syncRunFull() error {
 	for _, token := range m.cloudProvider.FetchTokens() {
-		contextLogger := log.WithFields(log.Fields{"token": token.Id()})
+		contextLogger := m.Logger.With(zap.String("token", token.Id()))
 		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
 		if !m.checkTokenRenewal(token) {
 			contextLogger.Infof("valid cloud token, syncing to cluster")
@@ -183,7 +185,7 @@ func (m *KubeBootstrapTokenManager) syncRunFull() error {
 
 func (m *KubeBootstrapTokenManager) syncRun() error {
 	if token := m.cloudProvider.FetchToken(); token != nil {
-		contextLogger := log.WithFields(log.Fields{"token": token.Id()})
+		contextLogger := m.Logger.With(zap.String("token", token.Id()))
 		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
 		if m.checkTokenRenewal(token) {
 			contextLogger.Infof("token is not valid or going to expire, starting renewal of token")
@@ -198,7 +200,7 @@ func (m *KubeBootstrapTokenManager) syncRun() error {
 			}
 		}
 	} else {
-		log.Infof("no cloud token found, creating new one")
+		m.Logger.Infof("no cloud token found, creating new one")
 		if err := m.createNewToken(); err != nil {
 			return err
 		}
@@ -227,7 +229,7 @@ func (m *KubeBootstrapTokenManager) createNewToken() error {
 
 // checks if token already exists, updates if needed otherwise creates token
 func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.BootstrapToken, syncToCloud bool) error {
-	contextLogger := log.WithFields(log.Fields{"token": token.Id()})
+	contextLogger := m.Logger.With(zap.String("token", token.Id()))
 
 	resourceName := fmt.Sprintf(m.Opts.BootstrapToken.Name, token.Id())
 	resourceNs := m.Opts.BootstrapToken.Namespace
@@ -303,6 +305,14 @@ func (m *KubeBootstrapTokenManager) updateTokenData(resource *corev1.Secret, tok
 		resource.StringData = map[string]string{}
 	}
 
+	if resource.Annotations == nil {
+		resource.Annotations = map[string]string{}
+	}
+
+	for name, value := range token.Annotations() {
+		resource.Annotations[name] = value
+	}
+
 	resource.StringData["description"] = fmt.Sprintf("Token maintained by kube-bootstrap-token-manager/%s", m.Version)
 	resource.StringData["token-id"] = token.Id()
 	resource.StringData["token-secret"] = token.Secret()
@@ -325,7 +335,7 @@ func (m *KubeBootstrapTokenManager) generateTokenId() string {
 
 	idBuf := &bytes.Buffer{}
 	if err := m.bootstrapToken.idTemplate.Execute(idBuf, templateData); err != nil {
-		log.Panic(err)
+		m.Logger.Panic(err)
 	}
 	return idBuf.String()
 }
@@ -339,7 +349,7 @@ func (m *KubeBootstrapTokenManager) generateTokenSecret() string {
 		if val, err := rand.Int(rand.Reader, big.NewInt(runeLength)); err == nil {
 			b[i] = runes[val.Uint64()]
 		} else {
-			log.Panic(err)
+			m.Logger.Panic(err)
 		}
 	}
 	return string(b)

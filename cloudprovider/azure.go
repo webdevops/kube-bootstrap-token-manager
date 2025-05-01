@@ -2,21 +2,22 @@ package cloudprovider
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"regexp"
+	"errors"
+	"sort"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/Azure/go-autorest/autorest/date"
-	log "github.com/sirupsen/logrus"
-	"github.com/webdevops/go-common/prometheus/azuretracing"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"go.uber.org/zap"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
+	"github.com/webdevops/go-common/azuresdk/armclient"
 
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
+)
+
+const (
+	SECRET_SYNC_COUNT_MAX = 15
 )
 
 type (
@@ -26,69 +27,54 @@ type (
 		opts config.Opts
 		ctx  context.Context
 
-		log         *log.Entry
-		environment azure.Environment
-		authorizer  autorest.Authorizer
+		logger *zap.SugaredLogger
+		client *armclient.ArmClient
 
-		keyvaultClient *keyvault.BaseClient
+		keyvaultClient *azsecrets.Client
 	}
 )
 
-func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts) {
+func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts, logger *zap.SugaredLogger, userAgent string) {
 	var err error
 	m.ctx = ctx
 	m.opts = opts
-	m.log = log.WithField("cloudprovider", "azure")
+	m.logger = logger.With(
+		zap.String("cloudprovider", "azure"),
+	)
 
-	if m.opts.CloudProvider.Azure.KeyVaultName == nil || *m.opts.CloudProvider.Azure.KeyVaultName == "" {
-		m.log.Panic("no Azure KeyVault name specified")
+	m.client, err = armclient.NewArmClientFromEnvironment(logger)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+	m.client.SetUserAgent(userAgent)
+
+	if m.opts.CloudProvider.Azure.KeyVaultUrl == nil || *m.opts.CloudProvider.Azure.KeyVaultUrl == "" {
+		m.logger.Panic("no Azure KeyVault name specified")
 	}
 
 	if m.opts.CloudProvider.Azure.KeyVaultSecretName == nil || *m.opts.CloudProvider.Azure.KeyVaultSecretName == "" {
-		m.log.Panic("no Azure KeyVault secret name specified")
-	}
-
-	if m.opts.CloudProvider.Config != nil {
-		if err := os.Setenv("AZURE_AUTH_LOCATION", *m.opts.CloudProvider.Config); err != nil {
-			m.log.Panic(err)
-		}
-	}
-
-	// environment
-	if m.opts.CloudProvider.Azure.Environment != nil {
-		m.environment, err = azure.EnvironmentFromName(*m.opts.CloudProvider.Azure.Environment)
-	} else {
-		m.environment, err = azure.EnvironmentFromName("AZUREPUBLICCLOUD")
-	}
-	if err != nil {
-		m.log.Panic(err)
-	}
-
-	// auth
-	if m.opts.CloudProvider.Config != nil {
-		m.authorizer, err = auth.NewAuthorizerFromFileWithResource(m.environment.ResourceIdentifiers.KeyVault)
-	} else {
-		m.authorizer, err = auth.NewAuthorizerFromEnvironmentWithResource(m.environment.ResourceIdentifiers.KeyVault)
-	}
-	if err != nil {
-		m.log.Panic(err)
+		m.logger.Panic("no Azure KeyVault secret name specified")
 	}
 
 	// keyvault client
-	client := keyvault.New()
-	m.decorateAzureAutorestClient(&client.Client)
-	m.keyvaultClient = &client
+	secretOpts := azsecrets.ClientOptions{
+		ClientOptions: *m.client.NewAzCoreClientOptions(),
+	}
+	m.keyvaultClient, err = azsecrets.NewClient(*m.opts.CloudProvider.Azure.KeyVaultUrl, m.client.GetCred(), &secretOpts)
+	if err != nil {
+		m.logger.Panic(err)
+	}
 }
 
 func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken) {
-	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	vaultUrl := *m.opts.CloudProvider.Azure.KeyVaultUrl
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
 
-	contextLogger := log.WithFields(log.Fields{"keyVault": vaultName, "secretName": secretName})
+	contextLogger := m.logger.With(zap.String("keyVault", vaultUrl), zap.String("secretName", secretName))
 
-	contextLogger.Infof("fetching current token from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
-	secret, err := m.keyvaultClient.GetSecret(m.ctx, m.getKeyVaultUrl(), secretName, "")
-	if m.handleKeyvaultError(err, contextLogger) != nil {
+	contextLogger.Infof("fetching current token from Azure KeyVault \"%s\" secret \"%s\"", vaultUrl, secretName)
+	secret, err := m.keyvaultClient.GetSecret(m.ctx, secretName, "", nil)
+	if m.handleKeyvaultError(contextLogger, err) != nil {
 		contextLogger.Panic(err)
 	}
 
@@ -96,12 +82,19 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 		token = bootstraptoken.ParseFromString(*secret.Value)
 		if token != nil {
 			if secret.Attributes.Created != nil {
-				token.SetCreationUnixTime(*secret.Attributes.Created)
+				token.SetCreationTime(*secret.Attributes.Created)
 			}
 
 			if secret.Attributes.Expires != nil {
-				token.SetExpirationUnixTime(*secret.Attributes.Expires)
+				token.SetExpirationTime(*secret.Attributes.Expires)
 			}
+
+			m.updateTokenMeta(token, secret)
+
+			token.SetAnnotation("bootstraptoken.webdevops.io/provider", "azure")
+			token.SetAnnotation("bootstraptoken.webdevops.io/keyvault", vaultUrl)
+			token.SetAnnotation("bootstraptoken.webdevops.io/secret", secretName)
+			token.SetAnnotation("bootstraptoken.webdevops.io/secretVersion", secret.ID.Version())
 		}
 	}
 
@@ -110,64 +103,79 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 
 func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapToken) {
 	tokens = []*bootstraptoken.BootstrapToken{}
-	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	vaultUrl := *m.opts.CloudProvider.Azure.KeyVaultUrl
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
 
-	contextLogger := log.WithFields(log.Fields{"keyVault": vaultName, "secretName": secretName})
+	contextLogger := m.logger.With(zap.String("keyVault", vaultUrl), zap.String("secretName", secretName))
 
-	maxResults := int32(15)
+	contextLogger.Infof("fetching all tokens from Azure KeyVault \"%s\" secret \"%s\"", vaultUrl, secretName)
 
-	contextLogger.Infof("fetching all tokens from Azure KeyVault \"%s\" secret \"%s\"", vaultName, secretName)
-	list, err := m.keyvaultClient.GetSecretVersions(m.ctx, m.getKeyVaultUrl(), secretName, &maxResults)
-	if m.handleKeyvaultError(err, contextLogger) != nil {
-		contextLogger.Panic(err)
-	}
-
-	for _, secret := range list.Values() {
-		secretVersion := m.getSecretVersionFromId(*secret.ID)
-		secretLogger := contextLogger.WithField("secretVersion", secretVersion)
-
-		if secret.Attributes == nil {
-			secretLogger.Debug("ignoring, secret attributes are not set")
-			continue
+	pager := m.keyvaultClient.NewListSecretPropertiesVersionsPager(secretName, nil)
+	// get secrets first
+	secretCandidateList := []*azsecrets.SecretProperties{}
+	for pager.More() {
+		result, err := pager.NextPage(m.ctx)
+		if err != nil {
+			m.logger.Panic(err)
 		}
 
-		// ignore not enabled
-		if secret.Attributes.Enabled != nil && !*secret.Attributes.Enabled {
-			secretLogger.Debug("ignoring, secret is disabled")
-			continue
-		}
-
-		// ignore expired secrets
-		if secret.Attributes.Expires != nil {
-			expirationTime := date.UnixEpoch().Add(secret.Attributes.Expires.Duration())
-			if expirationTime.Before(time.Now()) {
-				secretLogger.Debug("ignoring, secret is expired")
+		for _, secretVersion := range result.Value {
+			if !*secretVersion.Attributes.Enabled {
 				continue
 			}
+
+			if secretVersion.Attributes.NotBefore != nil && time.Now().Before(*secretVersion.Attributes.NotBefore) {
+				// not yet valid
+				continue
+			}
+
+			if secretVersion.Attributes.Expires != nil && time.Now().After(*secretVersion.Attributes.Expires) {
+				// expired
+				continue
+			}
+
+			secretCandidateList = append(secretCandidateList, secretVersion)
+		}
+	}
+
+	// sort results
+	sort.Slice(secretCandidateList, func(i, j int) bool {
+		return secretCandidateList[i].Attributes.Created.UTC().After(secretCandidateList[j].Attributes.Created.UTC())
+	})
+
+	// process list
+	secretCounter := 0
+	for _, secretVersion := range secretCandidateList {
+		secretLogger := contextLogger.With(zap.String("secretVersion", secretVersion.ID.Version()))
+
+		secret, err := m.keyvaultClient.GetSecret(m.ctx, secretVersion.ID.Name(), secretVersion.ID.Version(), nil)
+		if err != nil {
+			secretLogger.Warn(`unable to fetch secret "%[2]v" with version "%[3]v" from vault "%[1]v": %[4]w`, vaultUrl, secretVersion.ID.Name(), secretVersion.ID.Version(), err)
+			continue
 		}
 
-		if secretVersion != "" {
-			secret, err := m.keyvaultClient.GetSecret(m.ctx, m.getKeyVaultUrl(), secretName, secretVersion)
-			if m.handleKeyvaultError(err, contextLogger) != nil {
-				secretLogger.Panic(err)
-			}
+		if secret.Value != nil {
+			token := bootstraptoken.ParseFromString(*secret.Value)
+			if token != nil {
+				secretLogger.Info("found valid secret")
 
-			if secret.Value != nil {
-				token := bootstraptoken.ParseFromString(*secret.Value)
-				if token != nil {
-					secretLogger.Info("found valid secret")
-					if secret.Attributes.Created != nil {
-						token.SetCreationUnixTime(*secret.Attributes.Created)
-					}
-
-					if secret.Attributes.Expires != nil {
-						token.SetExpirationUnixTime(*secret.Attributes.Expires)
-					}
-
-					tokens = append(tokens, token)
+				if secret.Attributes.Created != nil {
+					token.SetCreationTime(*secret.Attributes.Created)
 				}
+
+				if secret.Attributes.Expires != nil {
+					token.SetExpirationTime(*secret.Attributes.Expires)
+				}
+
+				m.updateTokenMeta(token, secret)
+
+				tokens = append(tokens, token)
 			}
+		}
+
+		secretCounter++
+		if secretCounter > SECRET_SYNC_COUNT_MAX {
+			break
 		}
 	}
 
@@ -175,56 +183,53 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 }
 
 func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
-	contextLogger := m.log.WithFields(log.Fields{"token": token.Id()})
-	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
+	contextLogger := m.logger.With(zap.String("token", token.Id()))
+	vaultUrl := *m.opts.CloudProvider.Azure.KeyVaultUrl
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
 
-	contextLogger.Infof("storing token to Azure KeyVault \"%s\" secret \"%s\" with expiration %s", vaultName, secretName, token.ExpirationString())
+	contextLogger.Infof("storing token to Azure KeyVault \"%s\" secret \"%s\" with expiration %s", vaultUrl, secretName, token.ExpirationString())
 
-	secretParameters := keyvault.SecretSetParameters{
+	secretParameters := azsecrets.SetSecretParameters{
 		Value: stringPtr(token.FullToken()),
 		Tags: map[string]*string{
 			"managed-by": stringPtr("kube-bootstrap-token-manager"),
 			"token":      stringPtr(token.Id()),
 		},
 		ContentType: stringPtr("kube-bootstrap-token"),
-		SecretAttributes: &keyvault.SecretAttributes{
-			NotBefore: token.CreationUnixTime(),
-			Expires:   token.ExpirationUnixTime(),
+		SecretAttributes: &azsecrets.SecretAttributes{
+			NotBefore: token.CreationTime(),
+			Expires:   token.ExpirationTime(),
 		},
 	}
-	_, err := m.keyvaultClient.SetSecret(m.ctx, m.getKeyVaultUrl(), secretName, secretParameters)
+
+	_, err := m.keyvaultClient.SetSecret(m.ctx, secretName, secretParameters, nil)
 	if err != nil {
-		log.Panic(err)
+		m.logger.Panic(err)
 	}
 }
 
-func (m *CloudProviderAzure) getKeyVaultUrl() (vaultUrl string) {
-	vaultName := *m.opts.CloudProvider.Azure.KeyVaultName
-	vaultUrl = fmt.Sprintf(
-		"https://%s.%s",
-		vaultName,
-		m.environment.KeyVaultDNSSuffix,
-	)
+func (m *CloudProviderAzure) updateTokenMeta(token *bootstraptoken.BootstrapToken, secret azsecrets.GetSecretResponse) {
+	token.SetAnnotation("bootstraptoken.webdevops.io/provider", "azure")
+	token.SetAnnotation("bootstraptoken.webdevops.io/keyvault", *m.opts.CloudProvider.Azure.KeyVaultUrl)
+	token.SetAnnotation("bootstraptoken.webdevops.io/secret", secret.ID.Name())
+	token.SetAnnotation("bootstraptoken.webdevops.io/secretVersion", secret.ID.Version())
 
-	return
-}
-
-func (m *CloudProviderAzure) getSecretVersionFromId(secretId string) (version string) {
-	const resourceIDPatternText = `https://(.+)/secrets/(.+)/(.+)`
-	resourceIDPattern := regexp.MustCompile(resourceIDPatternText)
-	match := resourceIDPattern.FindStringSubmatch(secretId)
-
-	if len(match) == 4 {
-		return match[3]
+	if secret.Attributes.Created != nil {
+		token.SetAnnotation("bootstraptoken.webdevops.io/created", secret.Attributes.Created.Format(time.RFC3339))
 	}
 
-	return ""
+	if secret.Attributes.Expires != nil {
+		token.SetAnnotation("bootstraptoken.webdevops.io/expires", secret.Attributes.Expires.Format(time.RFC3339))
+	}
+
+	if secret.Attributes.NotBefore != nil {
+		token.SetAnnotation("bootstraptoken.webdevops.io/notBefore", secret.Attributes.NotBefore.Format(time.RFC3339))
+	}
 }
 
-func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) error {
+func (m *CloudProviderAzure) handleKeyvaultError(logger *zap.SugaredLogger, err error) error {
 	if err != nil {
-		switch m.getInnerErrorCodeFromAutorestError(err) {
+		switch m.parseAzCoreResponseError(err) {
 		case "SecretNotFound":
 			// no secret found, need to create new token
 			logger.Warn("no secret found, assuming non existing token")
@@ -243,24 +248,14 @@ func (m *CloudProviderAzure) handleKeyvaultError(err error, logger *log.Entry) e
 	return nil
 }
 
-func (m *CloudProviderAzure) getInnerErrorCodeFromAutorestError(err error) (code interface{}) {
+func (m *CloudProviderAzure) parseAzCoreResponseError(err error) (code interface{}) {
 	// TODO: check better error handling
 
 	// nolint:errorlint
-	if autorestError, ok := err.(autorest.DetailedError); ok {
+	var responseError *azcore.ResponseError
+	if err != nil && errors.As(err, &responseError) {
 		// nolint:errorlint
-		if azureRequestError, ok := autorestError.Original.(*azure.RequestError); ok {
-			if azureRequestError.ServiceError != nil {
-				if errorCode, exists := azureRequestError.ServiceError.InnerError["code"]; exists {
-					code = errorCode
-				}
-			}
-		}
+		code = responseError.ErrorCode
 	}
 	return
-}
-
-func (m *CloudProviderAzure) decorateAzureAutorestClient(client *autorest.Client) {
-	client.Authorizer = m.authorizer
-	azuretracing.DecorateAzureAutoRestClient(client)
 }

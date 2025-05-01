@@ -30,12 +30,12 @@ spec:
               value: "azure"
             ###########################
             # CloudProvider: Azure
-            - name: CLOUD_CONFIG
-              value: "/config/cloudprovider-azure.json"
             - name: AZURE_ENVIRONMENT
               value: "AzurePublicCloud"
-            - name: AZURE_KEYVAULT_NAME
-              value: "mblaschke-k8s"
+            - name: AZURE_KEYVAULT_URL
+              value: "https://example-vault.vault.azure.net/"
+            - name: AZURE_KEYVAULT_SECRET_NAME
+              value: "bootstrap-token"
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true

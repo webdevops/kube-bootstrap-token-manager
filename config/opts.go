@@ -3,23 +3,21 @@ package config
 import (
 	"encoding/json"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type (
 	Opts struct {
 		// logger
 		Logger struct {
-			Debug   bool `           long:"debug"        env:"DEBUG"    description:"debug mode"`
-			Trace   bool `           long:"trace"        env:"TRACE"    description:"verbose mode"`
-			LogJson bool `           long:"log.json"     env:"LOG_JSON" description:"Switch log output to json format"`
+			Debug       bool `long:"log.debug"    env:"LOG_DEBUG"  description:"debug mode"`
+			Development bool `long:"log.devel"    env:"LOG_DEVEL"  description:"development mode"`
+			Json        bool `long:"log.json"     env:"LOG_JSON"   description:"Switch log output to json format"`
 		}
 
 		BootstrapToken struct {
 			IdTemplate                   string         `long:"bootstraptoken.id-template"                     env:"BOOTSTRAPTOKEN_ID_TEMPLATE"                        description:"Template for token ID for bootstrap tokens" default:"{{.Date}}"`
 			Name                         string         `long:"bootstraptoken.name"                            env:"BOOTSTRAPTOKEN_NAME"                               description:"Name for bootstrap tokens" default:"bootstrap-token-%s"`
-			Label                        string         `long:"bootstraptoken.label"                           env:"BOOTSTRAPTOKEN_LABEL"                              description:"Label for bootstrap tokens" default:"webdevops.kubernetes.io/bootstraptoken-managed"`
+			Label                        string         `long:"bootstraptoken.label"                           env:"BOOTSTRAPTOKEN_LABEL"                              description:"Label for bootstrap tokens" default:"bootstraptoken.webdevops.io/managed"`
 			Namespace                    string         `long:"bootstraptoken.namespace"                       env:"BOOTSTRAPTOKEN_NAMESPACE"                          description:"Namespace for bootstrap tokens" default:"kube-system"`
 			Type                         string         `long:"bootstraptoken.type"                            env:"BOOTSTRAPTOKEN_TYPE"                               description:"Type for bootstrap tokens" default:"bootstrap.kubernetes.io/token"`
 			UsageBootstrapAuthentication string         `long:"bootstraptoken.usage-bootstrap-authentication"  env:"BOOTSTRAPTOKEN_USAGE_BOOTSTRAP_AUTHENTICATION"     description:"Usage bootstrap authentication for bootstrap tokens" default:"true"`
@@ -38,12 +36,10 @@ type (
 
 		CloudProvider struct {
 			Provider *string `long:"cloud-provider"  env:"CLOUD_PROVIDER"       description:"Cloud provider" choice:"azure" required:"true"`
-			Config   *string `long:"cloud-config"    env:"CLOUD_CONFIG"         description:"Cloud provider configuration path"`
 
 			Azure struct {
-				Environment        *string `long:"azure-environment"            env:"AZURE_ENVIRONMENT"                description:"Azure environment name"`
-				KeyVaultName       *string `long:"azure.keyvault-name"          env:"AZURE_KEYVAULT_NAME"              description:"Name of Keyvault to sync token"`
-				KeyVaultSecretName *string `long:"azure.keyvault-secret-name"   env:"AZURE_KEYVAULT_SECRET_NAME"       description:"Name of Keyvault secret to sync token" default:"kube-bootstrap-token"`
+				KeyVaultUrl        *string `long:"azure.keyvault.url"       env:"AZURE_KEYVAULT_URL"          description:"URL of Keyvault to sync token"`
+				KeyVaultSecretName *string `long:"azure.keyvault.secret"    env:"AZURE_KEYVAULT_SECRET"       description:"Name of Keyvault secret to sync token" default:"kube-bootstrap-token"`
 			}
 		}
 
@@ -63,7 +59,7 @@ type (
 func (o *Opts) GetJson() []byte {
 	jsonBytes, err := json.Marshal(o)
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 	return jsonBytes
 }
