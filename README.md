@@ -21,43 +21,27 @@ Usage:
   kube-bootstrap-token-manager [OPTIONS]
 
 Application Options:
-      --debug                                          debug mode [$DEBUG]
-      --trace                                          verbose mode [$TRACE]
+      --log.debug                                      debug mode [$LOG_DEBUG]
+      --log.devel                                      development mode [$LOG_DEVEL]
       --log.json                                       Switch log output to json format [$LOG_JSON]
-      --bootstraptoken.id-template=                    Template for token ID for bootstrap tokens (default: {{.Date}})
-                                                       [$BOOTSTRAPTOKEN_ID_TEMPLATE]
-      --bootstraptoken.name=                           Name for bootstrap tokens (default: bootstrap-token-%s)
-                                                       [$BOOTSTRAPTOKEN_NAME]
-      --bootstraptoken.label=                          Label for bootstrap tokens (default:
-                                                       webdevops.kubernetes.io/bootstraptoken-managed) [$BOOTSTRAPTOKEN_LABEL]
-      --bootstraptoken.namespace=                      Namespace for bootstrap tokens (default: kube-system)
-                                                       [$BOOTSTRAPTOKEN_NAMESPACE]
-      --bootstraptoken.type=                           Type for bootstrap tokens (default: bootstrap.kubernetes.io/token)
-                                                       [$BOOTSTRAPTOKEN_TYPE]
-      --bootstraptoken.usage-bootstrap-authentication= Usage bootstrap authentication for bootstrap tokens (default: true)
-                                                       [$BOOTSTRAPTOKEN_USAGE_BOOTSTRAP_AUTHENTICATION]
-      --bootstraptoken.usage-bootstrap-signing=        usage bootstrap signing for bootstrap tokens (default: true)
-                                                       [$BOOTSTRAPTOKEN_USAGE_BOOTSTRAP_SIGNING]
-      --bootstraptoken.auth-extra-groups=              Auth extra groups for bootstrap tokens (default:
-                                                       system:bootstrappers:worker,system:bootstrappers:ingress)
-                                                       [$BOOTSTRAPTOKEN_AUTH_EXTRA_GROUPS]
-      --bootstraptoken.expiration=                     Expiration (time.Duration) for bootstrap tokens (default: 8760h)
-                                                       [$BOOTSTRAPTOKEN_EXPIRATION]
-      --bootstraptoken.token-length=                   Length of the random token string for bootstrap tokens (default: 16)
-                                                       [$BOOTSTRAPTOKEN_TOKEN_LENGTH]
-      --bootstraptoken.token-runes=                    Runes which should be used for the random token string for bootstrap
-                                                       tokens (default: abcdefghijklmnopqrstuvwxyz0123456789)
+      --bootstraptoken.id-template=                    Template for token ID for bootstrap tokens (default: {{.Date}}) [$BOOTSTRAPTOKEN_ID_TEMPLATE]
+      --bootstraptoken.name=                           Name for bootstrap tokens (default: bootstrap-token-%s) [$BOOTSTRAPTOKEN_NAME]
+      --bootstraptoken.label=                          Label for bootstrap tokens (default: webdevops.kubernetes.io/bootstraptoken-managed) [$BOOTSTRAPTOKEN_LABEL]
+      --bootstraptoken.namespace=                      Namespace for bootstrap tokens (default: kube-system) [$BOOTSTRAPTOKEN_NAMESPACE]
+      --bootstraptoken.type=                           Type for bootstrap tokens (default: bootstrap.kubernetes.io/token) [$BOOTSTRAPTOKEN_TYPE]
+      --bootstraptoken.usage-bootstrap-authentication= Usage bootstrap authentication for bootstrap tokens (default: true) [$BOOTSTRAPTOKEN_USAGE_BOOTSTRAP_AUTHENTICATION]
+      --bootstraptoken.usage-bootstrap-signing=        usage bootstrap signing for bootstrap tokens (default: true) [$BOOTSTRAPTOKEN_USAGE_BOOTSTRAP_SIGNING]
+      --bootstraptoken.auth-extra-groups=              Auth extra groups for bootstrap tokens (default: system:bootstrappers:worker,system:bootstrappers:ingress) [$BOOTSTRAPTOKEN_AUTH_EXTRA_GROUPS]
+      --bootstraptoken.expiration=                     Expiration (time.Duration) for bootstrap tokens (default: 8760h) [$BOOTSTRAPTOKEN_EXPIRATION]
+      --bootstraptoken.token-length=                   Length of the random token string for bootstrap tokens (default: 16) [$BOOTSTRAPTOKEN_TOKEN_LENGTH]
+      --bootstraptoken.token-runes=                    Runes which should be used for the random token string for bootstrap tokens (default: abcdefghijklmnopqrstuvwxyz0123456789)
                                                        [$BOOTSTRAPTOKEN_TOKEN_RUNES]
       --sync.time=                                     Sync time (time.Duration) (default: 1h) [$SYNC_TIME]
-      --sync.recreate-before=                          Time duration (time.Duration) when token should be recreated (default:
-                                                       2190h) [$SYNC_RECREATE_BEFORE]
+      --sync.recreate-before=                          Time duration (time.Duration) when token should be recreated (default: 2190h) [$SYNC_RECREATE_BEFORE]
       --sync.full                                      Sync also previous tokens (full sync) [$SYNC_FULL]
       --cloud-provider=[azure]                         Cloud provider [$CLOUD_PROVIDER]
-      --cloud-config=                                  Cloud provider configuration path [$CLOUD_CONFIG]
-      --azure-environment=                             Azure environment name [$AZURE_ENVIRONMENT]
-      --azure.keyvault-name=                           Name of Keyvault to sync token [$AZURE_KEYVAULT_NAME]
-      --azure.keyvault-secret-name=                    Name of Keyvault secret to sync token (default: kube-bootstrap-token)
-                                                       [$AZURE_KEYVAULT_SECRET_NAME]
+      --azure.keyvault.url=                            URL of Keyvault to sync token [$AZURE_KEYVAULT_URL]
+      --azure.keyvault.secret=                         Name of Keyvault secret to sync token (default: kube-bootstrap-token) [$AZURE_KEYVAULT_SECRET]
       --dry-run                                        Dry run (do not apply to nodes) [$DRY_RUN]
       --server.bind=                                   Server address (default: :8080) [$SERVER_BIND]
       --server.timeout.read=                           Server read timeout (default: 5s) [$SERVER_TIMEOUT_READ]
@@ -67,7 +51,9 @@ Help Options:
   -h, --help                                           Show this help message
 ```
 
-for Azure API authentication (using ENV vars) see https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authentication
+for Azure API authentication (using ENV vars) see following documentations:
+- https://github.com/webdevops/go-common/blob/main/azuresdk/README.md
+- https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authentication
 
 ## Metrics
 
@@ -83,15 +69,7 @@ for Azure API authentication (using ENV vars) see https://docs.microsoft.com/en-
 
 ### AzureTracing metrics
 
-(with 22.2.0 and later)
-
-Azuretracing metrics collects latency and latency from azure-sdk-for-go and creates metrics and is controllable using
-environment variables (eg. setting buckets, disabling metrics or disable autoreset).
-
-| Metric                                   | Description                                                                            |
-|------------------------------------------|----------------------------------------------------------------------------------------|
-| `azurerm_api_ratelimit`                  | Azure ratelimit metrics (only on /metrics, resets after query due to limited validity) |
-| `azurerm_api_request_*`                  | Azure request count and latency as histogram                                           |
+see [armclient tracing documentation](https://github.com/webdevops/go-common/blob/main/azuresdk/README.md#azuretracing-metrics)
 
 #### Settings
 
