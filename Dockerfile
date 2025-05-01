@@ -30,7 +30,7 @@ RUN ["./kube-bootstrap-token-manager", "--help"]
 #############################################
 # Final
 #############################################
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/static AS final-static
 ENV LOG_JSON=1
 WORKDIR /
 COPY --from=test /app .
