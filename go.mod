@@ -7,7 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
 	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets v1.3.1
-	github.com/jessevdk/go-flags v1.5.0
+	github.com/jessevdk/go-flags v1.6.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/webdevops/go-common v0.0.0-20250501164923-7cab87d11d0f
 	go.uber.org/zap v1.27.0
