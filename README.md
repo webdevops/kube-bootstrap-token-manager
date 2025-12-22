@@ -21,12 +21,14 @@ Usage:
   kube-bootstrap-token-manager [OPTIONS]
 
 Application Options:
-      --log.debug                                      debug mode [$LOG_DEBUG]
-      --log.devel                                      development mode [$LOG_DEVEL]
-      --log.json                                       Switch log output to json format [$LOG_JSON]
+      --log.level=[trace|debug|info|warning|error]     Log level (default: info) [$LOG_LEVEL]
+      --log.format=[logfmt|json]                       Log format (default: logfmt) [$LOG_FORMAT]
+      --log.source=[|short|file|full]                  Show source for every log message (useful for debugging and bug reports) [$LOG_SOURCE]
+      --log.color=[|auto|yes|no]                       Enable color for logs [$LOG_COLOR]
+      --log.time                                       Show log time [$LOG_TIME]
       --bootstraptoken.id-template=                    Template for token ID for bootstrap tokens (default: {{.Date}}) [$BOOTSTRAPTOKEN_ID_TEMPLATE]
       --bootstraptoken.name=                           Name for bootstrap tokens (default: bootstrap-token-%s) [$BOOTSTRAPTOKEN_NAME]
-      --bootstraptoken.label=                          Label for bootstrap tokens (default: webdevops.kubernetes.io/bootstraptoken-managed) [$BOOTSTRAPTOKEN_LABEL]
+      --bootstraptoken.label=                          Label for bootstrap tokens (default: bootstraptoken.webdevops.io/managed) [$BOOTSTRAPTOKEN_LABEL]
       --bootstraptoken.namespace=                      Namespace for bootstrap tokens (default: kube-system) [$BOOTSTRAPTOKEN_NAMESPACE]
       --bootstraptoken.type=                           Type for bootstrap tokens (default: bootstrap.kubernetes.io/token) [$BOOTSTRAPTOKEN_TYPE]
       --bootstraptoken.usage-bootstrap-authentication= Usage bootstrap authentication for bootstrap tokens (default: true) [$BOOTSTRAPTOKEN_USAGE_BOOTSTRAP_AUTHENTICATION]
@@ -34,8 +36,7 @@ Application Options:
       --bootstraptoken.auth-extra-groups=              Auth extra groups for bootstrap tokens (default: system:bootstrappers:worker,system:bootstrappers:ingress) [$BOOTSTRAPTOKEN_AUTH_EXTRA_GROUPS]
       --bootstraptoken.expiration=                     Expiration (time.Duration) for bootstrap tokens (default: 8760h) [$BOOTSTRAPTOKEN_EXPIRATION]
       --bootstraptoken.token-length=                   Length of the random token string for bootstrap tokens (default: 16) [$BOOTSTRAPTOKEN_TOKEN_LENGTH]
-      --bootstraptoken.token-runes=                    Runes which should be used for the random token string for bootstrap tokens (default: abcdefghijklmnopqrstuvwxyz0123456789)
-                                                       [$BOOTSTRAPTOKEN_TOKEN_RUNES]
+      --bootstraptoken.token-runes=                    Runes which should be used for the random token string for bootstrap tokens (default: abcdefghijklmnopqrstuvwxyz0123456789) [$BOOTSTRAPTOKEN_TOKEN_RUNES]
       --sync.time=                                     Sync time (time.Duration) (default: 1h) [$SYNC_TIME]
       --sync.recreate-before=                          Time duration (time.Duration) when token should be recreated (default: 2190h) [$SYNC_RECREATE_BEFORE]
       --sync.full                                      Sync also previous tokens (full sync) [$SYNC_FULL]

@@ -5,13 +5,14 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"os"
 	"text/template"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"go.uber.org/zap"
+	"github.com/webdevops/go-common/log/slogger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +31,7 @@ type (
 	KubeBootstrapTokenManager struct {
 		Opts      config.Opts
 		Version   string
-		Logger    *zap.SugaredLogger
+		Logger    *slogger.Logger
 		UserAgent string
 
 		ctx       context.Context
@@ -62,7 +63,7 @@ func (m *KubeBootstrapTokenManager) Init() {
 	if t, err := template.New("BootstrapTokenId").Parse(m.Opts.BootstrapToken.IdTemplate); err == nil {
 		m.bootstrapToken.idTemplate = t
 	} else {
-		m.Logger.Panic(err)
+		m.Logger.Panic(err.Error())
 	}
 }
 
@@ -149,7 +150,7 @@ func (m *KubeBootstrapTokenManager) Start() {
 		if m.Opts.Sync.Full {
 			m.Logger.Infof("starting full sync run")
 			if err := m.syncRunFull(); err != nil {
-				m.Logger.Error(err)
+				m.Logger.Error(err.Error())
 			}
 		}
 		for {
@@ -159,7 +160,7 @@ func (m *KubeBootstrapTokenManager) Start() {
 				m.prometheus.syncCount.WithLabelValues().Inc()
 				m.prometheus.syncTime.WithLabelValues().SetToCurrentTime()
 			} else {
-				m.Logger.Error(err)
+				m.Logger.Error(err.Error())
 				m.prometheus.sync.WithLabelValues().Set(0)
 			}
 			time.Sleep(m.Opts.Sync.Time)
@@ -169,7 +170,7 @@ func (m *KubeBootstrapTokenManager) Start() {
 
 func (m *KubeBootstrapTokenManager) syncRunFull() error {
 	for _, token := range m.cloudProvider.FetchTokens() {
-		contextLogger := m.Logger.With(zap.String("token", token.Id()))
+		contextLogger := m.Logger.With(slog.String("token", token.Id()))
 		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
 		if !m.checkTokenRenewal(token) {
 			contextLogger.Infof("valid cloud token, syncing to cluster")
@@ -185,7 +186,7 @@ func (m *KubeBootstrapTokenManager) syncRunFull() error {
 
 func (m *KubeBootstrapTokenManager) syncRun() error {
 	if token := m.cloudProvider.FetchToken(); token != nil {
-		contextLogger := m.Logger.With(zap.String("token", token.Id()))
+		contextLogger := m.Logger.With(slog.String("token", token.Id()))
 		contextLogger.Infof("found cloud token with id \"%s\" and expiration %s", token.Id(), token.ExpirationString())
 		if m.checkTokenRenewal(token) {
 			contextLogger.Infof("token is not valid or going to expire, starting renewal of token")
@@ -229,7 +230,7 @@ func (m *KubeBootstrapTokenManager) createNewToken() error {
 
 // checks if token already exists, updates if needed otherwise creates token
 func (m *KubeBootstrapTokenManager) createOrUpdateToken(token *bootstraptoken.BootstrapToken, syncToCloud bool) error {
-	contextLogger := m.Logger.With(zap.String("token", token.Id()))
+	contextLogger := m.Logger.With(slog.String("token", token.Id()))
 
 	resourceName := fmt.Sprintf(m.Opts.BootstrapToken.Name, token.Id())
 	resourceNs := m.Opts.BootstrapToken.Namespace
@@ -335,7 +336,7 @@ func (m *KubeBootstrapTokenManager) generateTokenId() string {
 
 	idBuf := &bytes.Buffer{}
 	if err := m.bootstrapToken.idTemplate.Execute(idBuf, templateData); err != nil {
-		m.Logger.Panic(err)
+		m.Logger.Panic(err.Error())
 	}
 	return idBuf.String()
 }
@@ -349,7 +350,7 @@ func (m *KubeBootstrapTokenManager) generateTokenSecret() string {
 		if val, err := rand.Int(rand.Reader, big.NewInt(runeLength)); err == nil {
 			b[i] = runes[val.Uint64()]
 		} else {
-			m.Logger.Panic(err)
+			m.Logger.Panic(err.Error())
 		}
 	}
 	return string(b)

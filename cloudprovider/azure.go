@@ -3,14 +3,14 @@ package cloudprovider
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sort"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"go.uber.org/zap"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"github.com/webdevops/go-common/azuresdk/armclient"
+	"github.com/webdevops/go-common/log/slogger"
 
 	"github.com/webdevops/kube-bootstrap-token-manager/bootstraptoken"
 	"github.com/webdevops/kube-bootstrap-token-manager/config"
@@ -27,22 +27,22 @@ type (
 		opts config.Opts
 		ctx  context.Context
 
-		logger *zap.SugaredLogger
+		logger *slogger.Logger
 		client *armclient.ArmClient
 
 		keyvaultClient *azsecrets.Client
 	}
 )
 
-func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts, logger *zap.SugaredLogger, userAgent string) {
+func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts, logger *slogger.Logger, userAgent string) {
 	var err error
 	m.ctx = ctx
 	m.opts = opts
 	m.logger = logger.With(
-		zap.String("cloudprovider", "azure"),
+		slog.String("cloudprovider", "azure"),
 	)
 
-	m.client, err = armclient.NewArmClientFromEnvironment(logger)
+	m.client, err = armclient.NewArmClientFromEnvironment(logger.Slog())
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
@@ -62,7 +62,7 @@ func (m *CloudProviderAzure) Init(ctx context.Context, opts config.Opts, logger 
 	}
 	m.keyvaultClient, err = azsecrets.NewClient(*m.opts.CloudProvider.Azure.KeyVaultUrl, m.client.GetCred(), &secretOpts)
 	if err != nil {
-		m.logger.Panic(err)
+		m.logger.Panic(err.Error())
 	}
 }
 
@@ -70,12 +70,12 @@ func (m *CloudProviderAzure) FetchToken() (token *bootstraptoken.BootstrapToken)
 	vaultUrl := *m.opts.CloudProvider.Azure.KeyVaultUrl
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
 
-	contextLogger := m.logger.With(zap.String("keyVault", vaultUrl), zap.String("secretName", secretName))
+	contextLogger := m.logger.With(slog.String("keyVault", vaultUrl), slog.String("secretName", secretName))
 
-	contextLogger.Infof("fetching current token from Azure KeyVault \"%s\" secret \"%s\"", vaultUrl, secretName)
+	contextLogger.Info("fetching current token from Azure KeyVault")
 	secret, err := m.keyvaultClient.GetSecret(m.ctx, secretName, "", nil)
 	if m.handleKeyvaultError(contextLogger, err) != nil {
-		contextLogger.Panic(err)
+		contextLogger.Panic(err.Error())
 	}
 
 	if secret.Value != nil {
@@ -106,9 +106,8 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 	vaultUrl := *m.opts.CloudProvider.Azure.KeyVaultUrl
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
 
-	contextLogger := m.logger.With(zap.String("keyVault", vaultUrl), zap.String("secretName", secretName))
-
-	contextLogger.Infof("fetching all tokens from Azure KeyVault \"%s\" secret \"%s\"", vaultUrl, secretName)
+	contextLogger := m.logger.With(slog.String("keyVault", vaultUrl), slog.String("secretName", secretName))
+	contextLogger.Info("fetching all tokens from Azure KeyVault")
 
 	pager := m.keyvaultClient.NewListSecretPropertiesVersionsPager(secretName, nil)
 	// get secrets first
@@ -116,7 +115,7 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 	for pager.More() {
 		result, err := pager.NextPage(m.ctx)
 		if err != nil {
-			m.logger.Panic(err)
+			m.logger.Panic(err.Error())
 		}
 
 		for _, secretVersion := range result.Value {
@@ -146,11 +145,11 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 	// process list
 	secretCounter := 0
 	for _, secretVersion := range secretCandidateList {
-		secretLogger := contextLogger.With(zap.String("secretVersion", secretVersion.ID.Version()))
+		secretLogger := contextLogger.With(slog.String("secretVersion", secretVersion.ID.Version()))
 
 		secret, err := m.keyvaultClient.GetSecret(m.ctx, secretVersion.ID.Name(), secretVersion.ID.Version(), nil)
 		if err != nil {
-			secretLogger.Warn(`unable to fetch secret "%[2]v" with version "%[3]v" from vault "%[1]v": %[4]w`, vaultUrl, secretVersion.ID.Name(), secretVersion.ID.Version(), err)
+			secretLogger.Warn(`unable to fetch secret`, slog.Any("error", err))
 			continue
 		}
 
@@ -183,11 +182,15 @@ func (m *CloudProviderAzure) FetchTokens() (tokens []*bootstraptoken.BootstrapTo
 }
 
 func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
-	contextLogger := m.logger.With(zap.String("token", token.Id()))
 	vaultUrl := *m.opts.CloudProvider.Azure.KeyVaultUrl
 	secretName := *m.opts.CloudProvider.Azure.KeyVaultSecretName
 
-	contextLogger.Infof("storing token to Azure KeyVault \"%s\" secret \"%s\" with expiration %s", vaultUrl, secretName, token.ExpirationString())
+	contextLogger := m.logger.With(
+		slog.String("token", token.Id()),
+		slog.String("keyVault", vaultUrl),
+		slog.String("secretName", secretName),
+	)
+	contextLogger.Info("storing token to Azure KeyVault", slog.String("expiration", token.ExpirationString()))
 
 	secretParameters := azsecrets.SetSecretParameters{
 		Value: stringPtr(token.FullToken()),
@@ -204,7 +207,7 @@ func (m *CloudProviderAzure) StoreToken(token *bootstraptoken.BootstrapToken) {
 
 	_, err := m.keyvaultClient.SetSecret(m.ctx, secretName, secretParameters, nil)
 	if err != nil {
-		m.logger.Panic(err)
+		m.logger.Panic(err.Error())
 	}
 }
 
@@ -227,7 +230,7 @@ func (m *CloudProviderAzure) updateTokenMeta(token *bootstraptoken.BootstrapToke
 	}
 }
 
-func (m *CloudProviderAzure) handleKeyvaultError(logger *zap.SugaredLogger, err error) error {
+func (m *CloudProviderAzure) handleKeyvaultError(logger *slogger.Logger, err error) error {
 	if err != nil {
 		switch m.parseAzCoreResponseError(err) {
 		case "SecretNotFound":
